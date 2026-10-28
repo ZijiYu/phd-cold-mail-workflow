@@ -89,6 +89,8 @@ For multiple targets, research and draft each email independently; never mail-me
 
 For tracking, follow-up scheduling, mailbox drafts, and reply handling, read [references/campaign.md](references/campaign.md). Preserve existing user edits and make status transitions explicit.
 
+The user may also be working in the local dashboard (`dashboard/`), which reads and writes the same `targets.csv`, `programs.csv`, and `drafts/`. Re-read those files before editing rather than relying on an earlier copy, and keep the draft file format so both stay compatible. When it is running, its REST API (`http://127.0.0.1:8765/api/docs`, token in `~/.phd-outreach-dashboard/api_token`) is an alternative to editing files directly.
+
 Before any authorized send action, show the exact final draft(s), recipients, subject lines, and attachment state. Stop if an address is ambiguous, a required attachment is missing, or the draft contains unresolved placeholders.
 
 ## Output

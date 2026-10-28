@@ -20,6 +20,7 @@ An agent skill for the full PhD outreach pipeline: shortlist programs (选校), 
 | `scripts/check_draft.py` | Placeholders, length, subject, greeting, stock phrases, admission asks |
 | `scripts/check_tracker.py` | Status values, required fields, dates, duplicates, due follow-ups, contact limits |
 | `agents/openai.yaml` | Interface metadata for agents that read it |
+| `dashboard/` | Local dashboard + REST API over the same campaign files, with Gmail reply sync and drafts ([details](dashboard/README.md)) |
 
 ## Quick start
 
@@ -32,10 +33,23 @@ python scripts/check_draft.py outreach/fall-2027/drafts/*.md
 python scripts/check_tracker.py outreach/fall-2027/targets.csv
 ```
 
+## Dashboard
+
+A local web dashboard shows schools and professors in a sidebar, the outreach pipeline, and each email draft. It can bind your Gmail (read replies, save drafts, never send) and exposes a REST API.
+
+```bash
+pip install -r dashboard/requirements.txt
+python -m dashboard --data dashboard/sample/outreach --open   # fictional sample data
+python -m dashboard --data outreach --open                    # your campaign
+```
+
+Setup for Gmail and the API reference are in [dashboard/README.md](dashboard/README.md).
+
 ## Tests
 
 ```bash
-python -m unittest discover tests
+python -m unittest discover tests            # skill scripts, stdlib only
+python -m unittest discover dashboard/tests  # dashboard API (needs dashboard/requirements.txt)
 ```
 
 The skill never sends email on its own: sending requires explicit approval of the exact recipients and drafts.

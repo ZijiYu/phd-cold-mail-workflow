@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.local.md
+# dashboard local state (default lives in ~/.phd-outreach-dashboard, but never commit it if moved here)
+.phd-outreach-dashboard/
+api_token
+google_client.json
+google_token.json
+gmail_state.json
+# personal campaign data
+/outreach/
