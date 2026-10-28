@@ -25,7 +25,7 @@ try:
 except ImportError as e:  # pragma: no cover
     raise unittest.SkipTest(f"dashboard dependencies not installed: {e}")
 
-SAMPLE = ROOT / "dashboard" / "sample" / "outreach"
+SAMPLE = ROOT / "dashboard" / "tests" / "fixtures" / "outreach"
 TODAY = date(2026, 10, 28)
 C = "/api/campaigns/fall-2027"
 
@@ -106,6 +106,18 @@ class TrackerTests(Base):
         body = (SAMPLE / "fall-2027" / "drafts" / "harbor--priya-raman.md").read_text().split("\n", 2)[2].split("\n---")[0]
         self.c.put(f"{t}/drafts/harbor--tom-lindqvist.md", json={"subject": "Fall 2027 PhD inquiry: replay-free online adaptation", "body": body})
         self.assertEqual(self.c.patch(t, json={"status": "approved"}).status_code, 200)
+
+    def test_create_campaign(self):
+        r = self.c.post("/api/campaigns", json={"id": "spring-2028"})
+        self.assertEqual(r.status_code, 201)
+        ids = [c["id"] for c in self.c.get("/api/campaigns").json()]
+        self.assertIn("spring-2028", ids)
+        self.assertEqual(self.c.get("/api/campaigns/spring-2028/summary").json()["total"], 0)
+        added = self.c.post("/api/campaigns/spring-2028/targets",
+                            json={"target_id": "x--prof", "professor": "Prof", "institution": "X"})
+        self.assertEqual(added.status_code, 201)
+        self.assertEqual(self.c.post("/api/campaigns", json={"id": "spring-2028"}).status_code, 409)
+        self.assertEqual(self.c.post("/api/campaigns", json={"id": "../evil"}).status_code, 400)
 
     def test_create_target(self):
         r = self.c.post(f"{C}/targets", json={"target_id": "summit--new-prof", "professor": "New Prof", "institution": "Summit University"})

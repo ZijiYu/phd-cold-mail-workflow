@@ -39,7 +39,7 @@ The skill folder contains:
 ## Run the dashboard
 
 ```bash
-dashboard/start.sh                    # ./outreach if present, else fictional sample data
+dashboard/start.sh                    # ./outreach (created if missing)
 dashboard/start.sh path/to/outreach   # your campaign folder
 ```
 

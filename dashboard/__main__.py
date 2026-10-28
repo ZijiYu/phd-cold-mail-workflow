@@ -1,7 +1,7 @@
 """Run the outreach dashboard.
 
     python -m dashboard --data outreach
-    python -m dashboard --data dashboard/sample/outreach --open
+    python -m dashboard --data outreach --open
 """
 
 from __future__ import annotations
@@ -31,10 +31,8 @@ def main() -> int:
 
     data = Path(args.data)
     if not data.is_dir():
-        print(f"Data folder not found: {data.resolve()}\n"
-              f"Point --data at the folder that holds your campaign folders (e.g. outreach/), "
-              f"or try the sample: --data dashboard/sample/outreach", file=sys.stderr)
-        return 1
+        data.mkdir(parents=True)
+        print(f"Created empty data folder: {data.resolve()} (add a campaign from the dashboard)")
     if args.host not in {"127.0.0.1", "localhost", "::1"}:
         print(f"WARNING: binding to {args.host} exposes the dashboard beyond this computer.", file=sys.stderr)
 

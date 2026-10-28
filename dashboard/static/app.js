@@ -100,6 +100,8 @@
       api("GET", `${C()}/summary`), api("GET", `${C()}/targets`), api("GET", `${C()}/programs`),
     ]);
     Object.assign(S, { summary, targets, programs });
+    const c = S.campaigns.find((x) => x.id === S.campaign);
+    if (c && c.targets !== targets.length) { c.targets = targets.length; renderCampaignSelect(); }
     renderTree();
   }
 
@@ -184,6 +186,12 @@
     renderTree();
     const sm = S.summary;
     if (!sm) return;
+    if (!sm.total) {
+      main.innerHTML = `<div class="lede"><h1>${esc(campaignLabel(S.campaign))} 套磁</h1>
+        <p>这个申请季还没有教授。可以在这里手动添加，或者让 skill 跑一遍选校、选导师，把结果写进 <code>outreach/${esc(S.campaign)}/targets.csv</code>，刷新页面就会出现。</p></div>
+        <p><button class="btn btn-accent" data-act="add-target">添加教授</button></p>`;
+      return;
+    }
     const due = sm.due.length;
     const actions = S.targets.map((t) => ({ t, a: actionFor(t) })).filter((x) => x.a);
     const rate = sm.reply_rate === null ? "" : `，回复率 ${Math.round(sm.reply_rate * 100)}%`;
@@ -202,7 +210,7 @@
 
     main.innerHTML = `
       <div class="lede">
-        <h1>${esc(S.campaign)} 套磁</h1>
+        <h1>${esc(campaignLabel(S.campaign))} 套磁</h1>
         <p>共 <strong>${sm.total}</strong> 位教授，分布在 <strong>${sm.schools.length}</strong> 所学校。已联系 <strong>${sm.contacted}</strong> 位，<strong>${sm.replied}</strong> 位有回音${rate}。${due ? `今天有 <strong>${due}</strong> 封跟进到期。` : "今天没有到期的跟进。"}</p>
       </div>
 
@@ -640,6 +648,7 @@
     try {
       if (act.startsWith("set:")) return setStatus({ status: act.slice(4) });
       switch (act) {
+        case "add-target": return addTargetDialog();
         case "status-dialog": return statusDialog();
         case "mark-sent": return markSentDialog();
         case "mark-replied": return markRepliedDialog();
@@ -689,7 +698,7 @@
 
   $("#search").addEventListener("input", (e) => { S.search = e.target.value; renderTree(); });
   $("#add-target").addEventListener("click", addTargetDialog);
-  $("#campaign").addEventListener("change", async (e) => { S.campaign = e.target.value; await loadCampaign(); location.hash = "#/"; route(); });
+  $("#campaign").addEventListener("change", (e) => switchCampaign(e.target.value));
   $("#open-side").addEventListener("click", () => $("#sidebar").classList.add("open"));
   $("#close-side").addEventListener("click", () => $("#sidebar").classList.remove("open"));
   $("#tree").addEventListener("click", (e) => { if (e.target.closest(".prof")) $("#sidebar").classList.remove("open"); });
@@ -718,20 +727,67 @@
   }
   window.addEventListener("hashchange", route);
 
+  // ------------------------------------------------------------ campaigns
+  const SEASONS = { spring: "Spring", summer: "Summer", fall: "Fall", autumn: "Fall", winter: "Winter" };
+  function campaignLabel(id) {
+    const m = String(id).match(/^(spring|summer|fall|autumn|winter)-(\d{4})$/i);
+    return m ? `${m[2]} ${SEASONS[m[1].toLowerCase()]}` : id;
+  }
+  const LAST_KEY = "outreach.campaign";
+  function rememberCampaign(id) { try { localStorage.setItem(LAST_KEY, id); } catch (e) { /* storage unavailable */ } }
+  function lastCampaign() { try { return localStorage.getItem(LAST_KEY); } catch (e) { return null; } }
+
+  function renderCampaignSelect() {
+    $("#campaign").innerHTML = S.campaigns.map((c) =>
+      `<option value="${attr(c.id)}">${esc(campaignLabel(c.id))}（${c.targets}）</option>`).join("");
+    $("#campaign").value = S.campaign;
+  }
+
+  async function switchCampaign(id) {
+    if (S.dirty && !confirm("当前草稿还没保存，确定切换申请季吗？")) { $("#campaign").value = S.campaign; return; }
+    S.dirty = false; S.detail = null; S.campaign = id; rememberCampaign(id);
+    await loadCampaign();
+    if (location.hash !== "#/") location.hash = "#/"; else renderOverview();
+  }
+
+  function newCampaignDialog() {
+    const y = new Date().getFullYear() + 1;
+    dialog(`<h2>新建申请季</h2>
+      <p>每个申请季是 <code>outreach/</code> 下的一个文件夹，有自己的学校、教授和草稿，互不影响。</p>
+      <div class="form-grid">
+        <label>入学学期<select name="season"><option value="fall">Fall（秋季）</option><option value="spring">Spring（春季）</option></select></label>
+        <label>年份<input name="year" type="number" min="2020" max="2100" value="${y}" required></label>
+      </div>
+      <div class="dlg-actions">${cancelBtn}<button class="btn btn-accent">创建</button></div>`,
+    async (fd) => {
+      const id = `${fd.get("season")}-${fd.get("year")}`;
+      await api("POST", "/campaigns", { id });
+      S.campaigns = await api("GET", "/campaigns");
+      S.campaign = id;
+      renderCampaignSelect();
+      await switchCampaign(id);
+      toast(`已新建 ${campaignLabel(id)}`);
+    });
+  }
+
   // ------------------------------------------------------------ boot
+  $("#new-campaign").addEventListener("click", newCampaignDialog);
   (async () => {
     try {
       S.campaigns = await api("GET", "/campaigns");
       loadGmail();
       if (!S.campaigns.length) {
         $("#tree").innerHTML = "";
-        main.innerHTML = `<div class="empty-main"><h1>还没有申请季数据</h1>
-          <p>面板读取 <code>--data</code> 指定的文件夹，里面每个子文件夹是一个申请季，至少要有 <code>targets.csv</code>。可以先用 skill 生成，或用示例数据试试：<code>python -m dashboard --data dashboard/sample/outreach</code>。</p></div>`;
+        main.innerHTML = `<div class="empty-main"><h1>还没有申请季</h1>
+          <p>每个申请季是 <code>outreach/</code> 下的一个文件夹。新建一个空的申请季开始记录，或者让 skill 生成 <code>targets.csv</code> 后刷新页面。</p>
+          <p><button class="btn btn-accent" id="first-campaign">新建申请季</button></p></div>`;
+        $("#first-campaign").addEventListener("click", newCampaignDialog);
         return;
       }
-      $("#campaign").innerHTML = S.campaigns.map((c) => `<option value="${attr(c.id)}">${esc(c.id)}</option>`).join("");
-      S.campaign = S.campaigns[S.campaigns.length - 1].id;
-      $("#campaign").value = S.campaign;
+      const remembered = lastCampaign();
+      const byTargets = [...S.campaigns].sort((a, b) => b.targets - a.targets)[0].id;
+      S.campaign = S.campaigns.some((c) => c.id === remembered) ? remembered : byTargets;
+      renderCampaignSelect();
       await loadCampaign();
       route();
     } catch (e) {

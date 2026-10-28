@@ -63,6 +63,10 @@ class TargetPatch(BaseModel):
     model_config = {"extra": "allow", "json_schema_extra": {"examples": [{"status": "approved"}, {"status": "closed", "close_reason": "not recruiting"}]}}
 
 
+class CampaignCreate(BaseModel):
+    id: str = Field(..., examples=["fall-2027"], description="Folder name under the data folder")
+
+
 class DraftCreate(BaseModel):
     kind: str = Field("first", pattern="^(first|followup|reply)$")
 
@@ -132,6 +136,10 @@ def create_app(data_dir: Path, state_dir: Path, gmail_transport: Transport = url
     @api.get("/campaigns", tags=["campaigns"], summary="List campaigns (folders with a targets.csv)")
     def list_campaigns():
         return store.campaigns()
+
+    @api.post("/campaigns", tags=["campaigns"], status_code=201, summary="Create an empty campaign, e.g. fall-2027")
+    def create_campaign(body: CampaignCreate):
+        return store.create_campaign(body.id)
 
     @api.get("/campaigns/{campaign}/summary", tags=["campaigns"], summary="Counts, due follow-ups, issues, schools")
     def summary(campaign: str):

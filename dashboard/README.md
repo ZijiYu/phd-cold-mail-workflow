@@ -4,11 +4,14 @@
 
 ```text
 outreach/
+|-- spring-2027/          # 一个申请季一个文件夹，面板左上角切换
+|   |-- programs.csv      # 选校
+|   |-- targets.csv       # 选导师 + 套磁状态
+|   `-- drafts/*.md       # 邮件草稿（首封、跟进、回复）
 `-- fall-2027/
-    |-- programs.csv      # 选校
-    |-- targets.csv       # 选导师 + 套磁状态
-    `-- drafts/*.md       # 邮件草稿（首封、跟进、回复）
 ```
+
+- **申请季**：每个子文件夹是一个申请季，例如 `spring-2027`、`fall-2027`，面板左上角切换。点切换框旁边的 “+” 可以新建一个空的申请季。
 
 - **侧栏**：按截止日期排列的学校，每所学校下列出教授和状态。可以搜索，也可以筛选“待处理 / 进行中 / 已结束”。
 - **总览**：套磁进度路线（调研 → 起草 → 定稿 → 已发送 → 有回音）、需要处理的事项、各学校的联系与回复情况。
@@ -21,7 +24,7 @@ outreach/
 在仓库根目录运行：
 
 ```bash
-dashboard/start.sh                    # 有 ./outreach 就用它，否则用虚构的示例数据
+dashboard/start.sh                    # 读取 ./outreach（不存在会自动创建）
 dashboard/start.sh path/to/outreach   # 指定自己的申请季文件夹
 ```
 
@@ -29,7 +32,7 @@ dashboard/start.sh path/to/outreach   # 指定自己的申请季文件夹
 
 ```bash
 pip install -r dashboard/requirements.txt
-python -m dashboard --data dashboard/sample/outreach --open
+python -m dashboard --data outreach --open
 ```
 
 默认地址是 http://127.0.0.1:8765/ ，只监听本机。在终端按 Ctrl+C 停止。

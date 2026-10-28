@@ -35,6 +35,10 @@ DEFAULT_TARGET_COLUMNS = [
     "checked_on", "draft_path", "variant", "status", "sent_at", "follow_up_count",
     "last_contact_at", "follow_up_due", "response_summary", "close_reason", "next_action",
 ]
+PROGRAM_COLUMNS = [
+    "program_id", "institution", "department", "degree", "admission_model", "deadline", "deadline_tz",
+    "can_name_faculty", "cross_dept_advising", "tier", "max_contacts", "source_urls", "checked_on",
+]
 REPLIED_LIKE = {"replied", "meeting_scheduled", "apply_and_mention", "redirected"}
 DEFAULT_FOLLOW_UP_DAYS = 10
 
@@ -118,6 +122,22 @@ class Store:
                 _, rows = check_tracker.load_csv(d / "targets.csv")
                 out.append({"id": d.name, "targets": len(rows), "has_programs": (d / "programs.csv").is_file()})
         return out
+
+    def create_campaign(self, campaign: str) -> dict:
+        """Create an empty campaign folder with header-only CSVs."""
+        if not SAFE_ID.match(campaign or ""):
+            raise StoreError("申请季名称只能包含字母、数字、'.'、'_'、'-'，例如 fall-2027")
+        with self._lock:
+            d = (self.data_dir / campaign).resolve()
+            if d.parent != self.data_dir:
+                raise StoreError("invalid campaign id")
+            if (d / "targets.csv").exists():
+                raise StoreError(f"申请季 {campaign} 已经存在", 409)
+            (d / "drafts").mkdir(parents=True, exist_ok=True)
+            _atomic_write(d / "targets.csv", ",".join(DEFAULT_TARGET_COLUMNS) + "\n")
+            if not (d / "programs.csv").exists():
+                _atomic_write(d / "programs.csv", ",".join(PROGRAM_COLUMNS) + "\n")
+        return {"id": campaign, "targets": 0, "has_programs": True}
 
     def campaign_dir(self, campaign: str) -> Path:
         if not SAFE_ID.match(campaign or ""):

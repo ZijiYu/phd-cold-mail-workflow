@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Start the outreach dashboard (macOS / Linux).
 #
-#   dashboard/start.sh                 # uses ./outreach if it exists, else the fictional sample
+#   dashboard/start.sh                 # uses ./outreach (created if missing)
 #   dashboard/start.sh path/to/outreach
 #
 # First run creates dashboard/.venv and installs dependencies there.
@@ -25,9 +25,7 @@ fi
 "$VENV/bin/python" -m pip install --quiet --upgrade pip
 "$VENV/bin/python" -m pip install --quiet -r dashboard/requirements.txt
 
-DATA="${1:-}"
-if [ -z "$DATA" ]; then
-  if [ -d "$ROOT/outreach" ]; then DATA="$ROOT/outreach"; else DATA="$ROOT/dashboard/sample/outreach"; fi
-fi
+DATA="${1:-$ROOT/outreach}"
+mkdir -p "$DATA"
 echo "Data folder: $DATA"
 exec "$VENV/bin/python" -m dashboard --data "$DATA" --open "${@:2}"
