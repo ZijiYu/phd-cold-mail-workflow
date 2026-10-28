@@ -188,11 +188,14 @@
     const actions = S.targets.map((t) => ({ t, a: actionFor(t) })).filter((x) => x.a);
     const rate = sm.reply_rate === null ? "" : `，回复率 ${Math.round(sm.reply_rate * 100)}%`;
 
+    const STAGE_CAP = 8;
     const stages = STAGES.map((st) => {
       const items = S.targets.filter((t) => st.statuses.includes(t.status));
+      const shown = items.slice(0, STAGE_CAP);
+      const more = items.length - shown.length;
       return `<div class="stage ${st.cls}${items.length ? " has-items" : ""}">
         <div class="stage-head"><span class="node"></span><span class="stage-title">${st.title}</span><span class="stage-count">${items.length}</span></div>
-        <ul class="stage-items">${items.map((t) => `<li><a href="#/t/${encodeURIComponent(t.target_id)}"><span class="n">${esc(t.professor)}</span><span class="s">${esc(shortSchool(t.institution))}${st.key === "reply" && t.status !== "replied" ? `，${esc(statusLabel(t.status))}` : ""}</span></a></li>`).join("")}</ul>
+        <ul class="stage-items">${shown.map((t) => `<li><a href="#/t/${encodeURIComponent(t.target_id)}"><span class="n">${esc(t.professor)}</span><span class="s">${esc(shortSchool(t.institution))}${st.key === "reply" && t.status !== "replied" ? `，${esc(statusLabel(t.status))}` : ""}</span></a></li>`).join("")}${more > 0 ? `<li class="stage-more">还有 ${more} 位，见左侧列表</li>` : ""}</ul>
       </div>`;
     }).join("");
     const off = S.targets.filter((t) => OFFRAMP.includes(t.status));

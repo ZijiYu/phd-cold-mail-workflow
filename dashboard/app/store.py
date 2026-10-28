@@ -265,7 +265,8 @@ class Store:
             deadlines = sorted(p.get("deadline", "") for p in progs if p.get("deadline"))
             tiers = sorted({p.get("tier", "") for p in progs if p.get("tier")})
             school_list.append({**s, "programs": [p.get("program_id") for p in progs], "deadline": deadlines[0] if deadlines else "", "tiers": tiers})
-        school_list.sort(key=lambda s: (s["deadline"] or "9999", s["institution"]))
+        # earliest deadline first; without deadlines, schools with replies come first
+        school_list.sort(key=lambda s: (s["deadline"] or "9999", -s["replied"], s["institution"]))
 
         out = res.to_dict()
         out.update({
