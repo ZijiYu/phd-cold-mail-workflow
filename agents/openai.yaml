@@ -1,0 +1,7 @@
+interface:
+  display_name: "Academic Outreach / 套磁"
+  short_description: "Research, draft, and track professor outreach"
+  default_prompt: "Use $cold-email to research my target professor, draft a personalized outreach email, and flag any facts I need to verify."
+
+policy:
+  allow_implicit_invocation: true
