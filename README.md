@@ -1,55 +1,57 @@
 # PhD cold-mail workflow / 套磁工作流
 
-An agent skill for the full PhD outreach pipeline: shortlist programs (选校), find and rank advisors (选导师), write evidence-based emails (套磁), and track follow-ups and replies.
+Two independent parts, in two folders:
+
+| Folder | What it is | How you use it |
+|---|---|---|
+| [`cold-email/`](cold-email/) | The agent skill: shortlist programs (选校), find and rank advisors (选导师), write evidence-based emails (套磁), track follow-ups and replies | Copy or symlink this folder into your agent's skills directory |
+| [`dashboard/`](dashboard/) | A local web dashboard + REST API over the same campaign files, with Gmail reply sync and drafts | Run it from this repo; it does not need to live in a skills directory |
+
+They share data, not code: the skill writes `outreach/<cycle>/targets.csv`, `programs.csv` and `drafts/`, and the dashboard reads and edits the same files. The dashboard keeps its own copy of the two check scripts, and a test fails if that copy drifts from the skill's.
 
 ```text
-0. Profile    -> 1. Discover          -> 2. Verify     -> 3. Bridge + draft -> 4. Send, track, reply
-   .local.md     programs + advisors     one target       per target           campaign files
+skill:      0. Profile -> 1. Discover -> 2. Verify -> 3. Bridge + draft -> 4. Send, track, reply
+dashboard:                                             edit + check      Gmail sync, drafts, API
 ```
 
-## Files
+## Install the skill
+
+```bash
+# Claude Code / agents that read ~/.agents/skills
+ln -s "$PWD/cold-email" ~/.agents/skills/cold-email
+# or copy it
+cp -r cold-email ~/.agents/skills/cold-email
+```
+
+The skill folder contains:
 
 | Path | Purpose |
 |---|---|
-| `SKILL.md` | Entry point: stages, rules, output, quality check |
-| `references/discovery.md` | Program table, advisor candidate sources, fit scoring, recruiting evidence |
-| `references/profile-template.md` | Schema for the applicant's `.local.md` |
-| `references/examples.md` | Fictional strong/weak emails for calibration |
-| `references/email-types.md` | Subjects, follow-ups, reply handling, meeting brief, other message types |
-| `references/campaign.md` | Tracker fields, status machine, same-school coordination, mailbox drafts |
-| `scripts/check_draft.py` | Placeholders, length, subject, greeting, stock phrases, admission asks |
-| `scripts/check_tracker.py` | Status values, required fields, dates, duplicates, due follow-ups, contact limits |
-| `agents/openai.yaml` | Interface metadata for agents that read it |
-| `dashboard/` | Local dashboard + REST API over the same campaign files, with Gmail reply sync and drafts ([details](dashboard/README.md)) |
+| `cold-email/SKILL.md` | Entry point: stages, rules, output, quality check |
+| `cold-email/references/discovery.md` | Program table, advisor candidate sources, fit scoring, recruiting evidence |
+| `cold-email/references/profile-template.md` | Schema for the applicant's `.local.md` |
+| `cold-email/references/examples.md` | Fictional strong/weak emails for calibration |
+| `cold-email/references/email-types.md` | Subjects, follow-ups, reply handling, meeting brief, other message types |
+| `cold-email/references/campaign.md` | Tracker fields, status machine, same-school coordination, mailbox drafts |
+| `cold-email/scripts/` | `check_draft.py`, `check_tracker.py` |
+| `cold-email/agents/openai.yaml` | Interface metadata for agents that read it |
 
-## Quick start
-
-1. Copy the template in `references/profile-template.md` into `.local.md` at your project root and fill it in.
-2. Ask the agent, for example: "Shortlist programs and advisors that fit my profile", or "Draft a first email to Prof. X at Y".
-3. Check drafts and the tracker:
+## Run the dashboard
 
 ```bash
-python scripts/check_draft.py outreach/fall-2027/drafts/*.md
-python scripts/check_tracker.py outreach/fall-2027/targets.csv
+dashboard/start.sh                    # ./outreach if present, else fictional sample data
+dashboard/start.sh path/to/outreach   # your campaign folder
 ```
 
-## Dashboard
+The first run creates `dashboard/.venv` and installs dependencies (Python 3.10+). Gmail setup and the API reference are in [dashboard/README.md](dashboard/README.md).
 
-A local web dashboard shows schools and professors in a sidebar, the outreach pipeline, and each email draft. It can bind your Gmail (read replies, save drafts, never send) and exposes a REST API.
-
-```bash
-pip install -r dashboard/requirements.txt
-python -m dashboard --data dashboard/sample/outreach --open   # fictional sample data
-python -m dashboard --data outreach --open                    # your campaign
-```
-
-Setup for Gmail and the API reference are in [dashboard/README.md](dashboard/README.md).
+Personal data stays out of git: `.local.md`, `/outreach/` and dashboard tokens are ignored.
 
 ## Tests
 
 ```bash
-python -m unittest discover tests            # skill scripts, stdlib only
-python -m unittest discover dashboard/tests  # dashboard API (needs dashboard/requirements.txt)
+python -m unittest discover cold-email/tests   # skill scripts, stdlib only
+python -m unittest discover dashboard/tests    # dashboard (needs dashboard/requirements.txt)
 ```
 
-The skill never sends email on its own: sending requires explicit approval of the exact recipients and drafts.
+Neither part sends email on its own: sending stays a manual action in your mail client.

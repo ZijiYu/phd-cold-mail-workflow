@@ -18,17 +18,23 @@ outreach/
 
 ## 运行
 
+在仓库根目录运行：
+
 ```bash
-pip install -r dashboard/requirements.txt
-
-# 先用示例数据（全部为虚构）看看
-python -m dashboard --data dashboard/sample/outreach --open
-
-# 用自己的数据
-python -m dashboard --data outreach --open
+dashboard/start.sh                    # 有 ./outreach 就用它，否则用虚构的示例数据
+dashboard/start.sh path/to/outreach   # 指定自己的申请季文件夹
 ```
 
-默认地址是 http://127.0.0.1:8765/ ，只监听本机。
+第一次运行会在 `dashboard/.venv` 里建虚拟环境并安装依赖（需要 Python 3.10+）。也可以手动运行：
+
+```bash
+pip install -r dashboard/requirements.txt
+python -m dashboard --data dashboard/sample/outreach --open
+```
+
+默认地址是 http://127.0.0.1:8765/ ，只监听本机。在终端按 Ctrl+C 停止。
+
+面板和 skill 是两个独立的文件夹。面板不需要放进 skills 目录，它用的检查脚本是 `cold-email/scripts/` 的副本，放在 `app/checks/`；两份不一致时 `test_checks_in_sync.py` 会报错。
 
 本地状态存放在 `~/.phd-outreach-dashboard/`（可以用 `--state-dir` 修改），不在仓库里：
 

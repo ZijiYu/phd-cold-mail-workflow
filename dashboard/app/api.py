@@ -208,7 +208,7 @@ def create_app(data_dir: Path, state_dir: Path, gmail_transport: Transport = url
         return saved
 
     @api.post("/campaigns/{campaign}/targets/{target_id}/drafts/{name}/check", tags=["drafts"],
-              summary="Run scripts/check_draft.py on a draft")
+              summary="Run the skill's draft checks (check_draft.py) on a draft")
     def check(campaign: str, target_id: str, name: str,
               kind: Optional[str] = Query(None, pattern="^(first|followup|thankyou|other)$")):
         return store.check_draft(campaign, target_id, name, kind)

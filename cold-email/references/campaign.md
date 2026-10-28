@@ -112,7 +112,7 @@ When a mail connector (Gmail, Outlook) is available in the session:
 - Searching the mailbox for replies from tracked addresses after `sent_at` is allowed when the user asks for a campaign update. Summarize each reply and propose the status change; ask the user when a reply's meaning is ambiguous.
 - Sending still requires explicit authorization for the exact recipients and drafts.
 
-The local dashboard (`dashboard/`) implements this boundary for Gmail with the user's own OAuth client: it proposes status changes from sends, replies, auto-replies, and bounces for the user to confirm, and saves approved drafts into Gmail drafts without sending. If the user has it connected, their tracker may already reflect Gmail activity.
+The companion dashboard (the `dashboard/` folder next to this skill in its GitHub repo) implements this boundary for Gmail with the user's own OAuth client: it proposes status changes from sends, replies, auto-replies, and bounces for the user to confirm, and saves approved drafts into Gmail drafts without sending. If the user has it connected, their tracker may already reflect Gmail activity.
 
 Without a connector or the dashboard, ask the user to report sends and replies, and update the tracker from that.
 

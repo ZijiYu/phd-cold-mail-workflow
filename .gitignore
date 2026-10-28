@@ -9,3 +9,5 @@ google_token.json
 gmail_state.json
 # personal campaign data
 /outreach/
+# dashboard virtualenv
+dashboard/.venv/

@@ -93,8 +93,7 @@ class TrackerTests(Base):
         row = self.c.patch(t, json={"status": "sent"}).json()
         self.assertEqual((row["sent_at"], row["follow_up_due"], row["follow_up_count"]), ("2026-10-28", "2026-11-07", "0"))
         # the CSV is still valid for the skill's checker
-        sys.path.insert(0, str(ROOT / "scripts"))
-        import check_tracker
+        from dashboard.app.checks import check_tracker
         cols, rows = check_tracker.load_csv(self.tmp / "data" / "fall-2027" / "targets.csv")
         self.assertIn("fit_components", cols)
         self.assertEqual(next(r for r in rows if r["target_id"] == "harbor--priya-raman")["status"], "sent")

@@ -8,6 +8,10 @@ agent and the dashboard always see one source of truth:
     <data_dir>/<campaign>/drafts/*.md
 
 Writes are atomic (temp file + rename) and preserve unknown columns.
+
+The draft and tracker checks are a vendored copy of the skill's
+cold-email/scripts/ (see app/checks/), so the dashboard runs on its own;
+dashboard/tests/test_checks_in_sync.py fails if the copies drift apart.
 """
 
 from __future__ import annotations
@@ -16,18 +20,12 @@ import csv
 import io
 import os
 import re
-import sys
 import tempfile
 import threading
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parents[2] / "scripts"
-if str(SCRIPTS) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS))
-
-import check_draft  # noqa: E402
-import check_tracker  # noqa: E402
+from .checks import check_draft, check_tracker
 
 SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,120}$")
 DEFAULT_TARGET_COLUMNS = [
