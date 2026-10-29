@@ -27,7 +27,11 @@
   --rk-rest: #66717F;
   --rk-rest-soft: #EEF1F4;
 
+  --claude: #C96442;
+  --claude-soft: #F6E7E0;
+
   --side-w: 300px;
+  --chat-w: 380px;
   --radius-s: 4px;
   --radius-m: 8px;
   color-scheme: light;
@@ -57,6 +61,8 @@
     --rk-mid-soft: #1C2638;
     --rk-rest: #5F6A79;
     --rk-rest-soft: #20262F;
+    --claude: #DA7756;
+    --claude-soft: #3A251D;
     color-scheme: dark;
   }
 }
@@ -72,6 +78,7 @@ body {
 button, input, select, textarea { font: inherit; color: inherit; }
 a { color: var(--postmark); }
 :focus-visible { outline: 2px solid var(--postmark); outline-offset: 2px; }
+[hidden] { display: none !important; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .skip { position: absolute; left: -999px; top: 8px; background: var(--sheet); padding: 6px 10px; z-index: 50; }
 .skip:focus { left: 8px; }
@@ -130,7 +137,7 @@ main:focus { outline: none; }
   background: var(--rk, var(--rk-rest)); color: #fff; font-variant-numeric: tabular-nums;
 }
 .rank-badge .rk-cs { font-weight: 700; }
-.rank-badge .rk-ai { font-size: 11px; opacity: .88; }
+.rank-badge .rk-src { font-size: 10px; opacity: .85; letter-spacing: .02em; }
 .rank-badge.is-empty { background: transparent; color: var(--faint); box-shadow: inset 0 0 0 1px var(--rule); }
 .detail-school { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .detail-school .rank-badge { --rk: var(--postmark); }
@@ -372,7 +379,58 @@ dialog::backdrop { background: rgba(15, 22, 33, .35); }
 .empty-main h1 { font: 500 28px/1.2 var(--serif); }
 .empty-main p { color: var(--graphite); }
 
+/* ---------------------------------------------------------------- Claude chat */
+body.chat-open .shell { grid-template-columns: var(--side-w) minmax(0, 1fr) var(--chat-w); }
+.chat-toggle .spark, .chat-title .spark { color: var(--claude); font-size: 15px; line-height: 1; }
+.chat-toggle[aria-expanded="true"] { border-color: var(--claude); background: var(--claude-soft); }
+.chat {
+  display: flex; flex-direction: column; height: 100vh; min-height: 0;
+  background: var(--sheet); border-left: 1px solid var(--rule);
+}
+.chat[hidden] { display: none; }
+.chat-head { display: flex; align-items: center; gap: 8px; padding: 12px 12px 10px 16px; border-bottom: 1px solid var(--rule-soft); }
+.chat-titles { flex: 1; min-width: 0; }
+.chat-title { display: flex; align-items: center; gap: 6px; font: 600 15px/1.3 var(--sans); }
+.chat-ctx { display: block; font-size: 12px; color: var(--graphite); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btn-sm { padding: 4px 10px; font-size: 13px; }
+.chat-log { flex: 1; overflow-y: auto; padding: 14px 14px 8px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+.chat-empty { color: var(--graphite); font-size: 13.5px; line-height: 1.6; }
+.chat-empty code { font-size: 12.5px; }
+.chat-tips { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 12px; }
+.chat-tips .chip-filter { text-align: left; border-radius: var(--radius-m); padding: 6px 10px; color: var(--ink); }
+.chat-tips .chip-filter:hover { border-color: var(--claude); }
+.cmsg { max-width: 100%; line-height: 1.6; overflow-wrap: anywhere; }
+.cmsg-user { align-self: flex-end; max-width: 88%; background: var(--postmark-soft); padding: 8px 12px; border-radius: 12px 12px 4px 12px; }
+.cmsg-ai { padding: 2px 2px; }
+.cmsg-ai pre { background: var(--paper); border: 1px solid var(--rule-soft); border-radius: var(--radius-s); padding: 8px 10px; overflow-x: auto; font-size: 12.5px; white-space: pre-wrap; margin: 6px 0; }
+.cmsg-ai code { background: var(--paper); padding: 0 4px; border-radius: 3px; font-size: 12.5px; }
+.cmsg-ai .li { display: block; padding-left: 14px; position: relative; }
+.cmsg-ai .li::before { content: "•"; position: absolute; left: 2px; color: var(--graphite); }
+.cmsg-tool {
+  display: grid; grid-template-columns: 16px auto 1fr; gap: 6px; align-items: baseline;
+  font-size: 12.5px; color: var(--graphite); padding: 2px 4px; border-left: 2px solid var(--rule);
+}
+.cmsg-tool .tool-l { color: var(--ink); font-weight: 500; white-space: nowrap; }
+.cmsg-tool .tool-s { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.tool-st { color: var(--s-replied); }
+.tool-st.bad { color: var(--s-stop); }
+.tool-st.run::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--claude); animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+.cmsg-meta { font-size: 12px; color: var(--faint); text-align: center; }
+.cmsg-meta.bad { color: var(--s-stop); text-align: left; background: color-mix(in srgb, var(--s-stop) 8%, transparent); padding: 6px 8px; border-radius: var(--radius-s); }
+.chat-form { border-top: 1px solid var(--rule-soft); padding: 10px 12px 12px; }
+.chat-form textarea {
+  width: 100%; resize: vertical; min-height: 64px; max-height: 40vh; padding: 8px 10px;
+  border: 1px solid var(--rule); border-radius: var(--radius-m); background: var(--paper); font-size: 14px; line-height: 1.5;
+}
+.chat-form textarea:focus { outline: none; border-color: var(--claude); box-shadow: 0 0 0 2px var(--claude-soft); }
+.chat-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.chat-status { flex: 1; font-size: 12px; color: var(--graphite); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* ---------------------------------------------------------------- responsive */
+@media (max-width: 1280px) {
+  body.chat-open .shell { grid-template-columns: 260px minmax(0, 1fr) 340px; }
+}
 @media (max-width: 1180px) {
   .letter-wrap { grid-template-columns: 1fr; }
   .rail { position: static; }
@@ -394,6 +452,8 @@ dialog::backdrop { background: rgba(15, 22, 33, .35); }
   .topbar { padding: 10px 16px; flex-wrap: wrap; }
   .topbar-right { gap: 6px; }
   .topbar-right .api-link { display: none; }
+  body.chat-open .shell { grid-template-columns: 1fr; }
+  .chat { position: fixed; inset: 0; z-index: 45; height: 100dvh; }
   .route-track { grid-template-columns: 1fr; overflow: visible; gap: 18px; }
   .route { overflow: visible; }
   .stage { padding: 0; }

@@ -44,10 +44,32 @@
           <div id="gmail-pill"></div>
           <button class="btn" id="sync-btn" disabled>同步 Gmail</button>
           <a class="btn btn-quiet api-link" href="/api/docs" target="_blank" rel="noopener">API 文档</a>
+          <button class="btn btn-quiet chat-toggle" id="chat-toggle" aria-controls="chat" aria-expanded="false"><span class="spark" aria-hidden="true">✳</span>Claude</button>
         </div>
       </header>
       <main id="main" tabindex="-1"></main>
     </div>
+
+    <aside class="chat" id="chat" aria-label="Claude Code 对话" hidden>
+      <div class="chat-head">
+        <div class="chat-titles">
+          <span class="chat-title"><span class="spark" aria-hidden="true">✳</span>Claude Code</span>
+          <span class="chat-ctx" id="chat-ctx"></span>
+        </div>
+        <button class="btn btn-quiet btn-sm" id="chat-new" title="清空记录，开始新的 Claude Code 会话">新对话</button>
+        <button class="icon-btn" id="chat-close" aria-label="关闭对话">✕</button>
+      </div>
+      <div class="chat-log" id="chat-log" aria-live="polite"></div>
+      <form class="chat-form" id="chat-form">
+        <label class="visually-hidden" for="chat-input">给 Claude 的消息</label>
+        <textarea id="chat-input" rows="3" placeholder="让 Claude 查资料、改表格、写草稿…（Enter 发送，Shift+Enter 换行）"></textarea>
+        <div class="chat-actions">
+          <span class="chat-status" id="chat-status"></span>
+          <button type="button" class="btn btn-quiet" id="chat-stop" hidden>停止</button>
+          <button type="submit" class="btn btn-accent" id="chat-send">发送</button>
+        </div>
+      </form>
+    </aside>
   </div>
 
   <dialog id="dialog"></dialog>

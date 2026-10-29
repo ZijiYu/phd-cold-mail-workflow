@@ -14,10 +14,11 @@ outreach/
 - **申请季**：每个子文件夹是一个申请季，例如 `spring-2027`、`fall-2027`，面板左上角切换。点切换框旁边的 “+” 可以新建一个空的申请季。
 
 - **侧栏**：按截止日期排列的学校，每所学校下列出教授和状态。可以搜索，也可以筛选“待处理 / 进行中 / 已结束”。学校标题是一条带色边的高亮条，滚动时会固定在顶部。
-- **学校排名**：每所学校旁边显示 CSRankings 美国排名，例如 `#24 AI #32`：前一个是综合排名，后一个是 AI 方向（AI、视觉、ML、NLP、信息检索）。颜色按综合排名分档：金色是前 20，蓝色是 21–50，灰色是 50 名以后。数据在 `app/rankings.json`，更新方法：`git clone --depth 1 https://github.com/emeryberger/CSrankings /tmp/csr && python dashboard/tools/build_rankings.py /tmp/csr`。学校名对不上时（显示“未排名”），在 `app/rankings.py` 的 `ALIASES` 里加一行简称。
+- **学校排名**：每所学校旁边显示 U.S. News 计算机科学研究生排名（2026 版），例如 `US News #43`。颜色分档：金色是前 20，蓝色是 21–50，灰色是 50 名以后。数据在 `app/rankings.json`，按 U.S. News 上的校名记录；新学校显示“无排名”时，在里面加一行即可。校名写法不同（如 “UC Davis”）时，在 `app/rankings.py` 的 `ALIASES` 里加简称。
 - **总览**：套磁进度路线（调研 → 起草 → 定稿 → 已发送 → 有回音）、需要处理的事项、各学校的联系与回复情况。
 - **教授页**：编辑草稿（⌘/Ctrl+S 保存，自动运行 `check_draft.py`）、查看 Gmail 往来、编辑资料与 fit 分项、更改状态。
 - **Gmail**：识别你已发出的邮件、教授回信、自动回复和退信，以**建议**的形式展示，由你确认后才更新；把定稿推送到 Gmail 草稿箱。**面板不会发送邮件**，发送仍在 Gmail 里手动点。
+- **Claude 对话**：右上角“Claude”打开对话栏，直接调用你电脑上的 Claude Code（见下文）。
 - **REST API**：上面所有操作都有接口，文档在 `/api/docs`。
 
 ## 运行
@@ -140,6 +141,20 @@ Google 没有“只能管理草稿”的权限，`gmail.compose` 在技术上也
 - **首封**：状态必须是“已定稿”。只有当首封草稿通过检查（没有占位符或 TODO）时，才能把状态改成“已定稿”。
 - **跟进或回复**：首封发出之后才能推送。如果已经同步过，草稿会挂在原来的邮件线程下（带 `In-Reply-To`）。
 - 再次推送会更新 Gmail 里的同一封草稿，不会重复创建。
+
+## Claude 对话
+
+右上角的 **Claude** 按钮打开对话栏。每条消息都会在仓库目录里运行一次本机的 Claude Code（`claude -p … --output-format stream-json`），回复、读写的文件和用到的工具会实时显示在对话栏里。
+
+- **需要**：本机装好 Claude Code 并登录过一次（终端里运行 `claude`，按提示登录）。用的是你自己的 Claude 账号和额度，面板只负责启动和转发。找不到 `claude` 时，用环境变量 `PHD_CLAUDE_BIN=/path/to/claude phd restart` 指定。Docker 版容器里没有 Claude Code，这个功能只在 `phd` / `start.sh` 运行时可用。
+- **上下文**：每条消息都会附上当前申请季和你正在看的教授，所以可以直接说“给这位教授写首封草稿”。Claude 会按 `cold-email/SKILL.md` 的流程做。
+- **改动会同步**：Claude 改了 `targets.csv` 或草稿后，面板会自动刷新。
+- **连续对话**：同一个申请季里的消息接着上一轮聊（`--resume`）。点“新对话”重新开始。对话记录只存在这个浏览器里。
+- **限制**：
+  - 不加载任何 MCP 连接器（`--strict-mcp-config`），所以没有 Gmail 等工具，**不能发邮件**。
+  - 只允许读写和搜索文件、联网搜索和打开网页，以及运行 skill 的两个检查脚本。其他命令（例如 `git push`）都会被拦下，并在回复末尾注明。
+  - 同一时间只运行一条消息；点“停止”会结束 Claude 进程。
+- **接口**：`POST /api/chat` 返回 Server-Sent Events，事件类型有 `session`、`text_delta`、`text`、`tool`、`tool_result`、`done`、`error`；`POST /api/chat/stop` 停止当前回复；`GET /api/chat/status` 查看 Claude Code 是否可用。
 
 ## REST API
 

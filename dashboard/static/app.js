@@ -171,15 +171,13 @@
 
   const tierLabel = (t) => ({ reach: "冲", match: "稳", safety: "保" }[t] || t);
 
-  // CSRankings (US). Bands: top 20, 21-50, 51+.
-  const rankClass = (r) => !r?.cs ? "rank-none" : r.cs <= 20 ? "rank-top" : r.cs <= 50 ? "rank-mid" : "rank-rest";
-  function rankTitle(r) {
-    const m = S.summary?.rankings || {};
-    return `CSRankings 美国排名（${m.years || "近十年"}）：综合 #${r.cs ?? "—"}，AI 方向 #${r.ai ?? "—"}。CSRankings 名称：${r.name}`;
-  }
+  // U.S. News Best Computer Science Schools (graduate). Bands: top 20, 21-50, 51+.
+  const rankClass = (r) => !r?.rank ? "rank-none" : r.rank <= 20 ? "rank-top" : r.rank <= 50 ? "rank-mid" : "rank-rest";
   function rankBadge(r) {
-    if (!r) return `<span class="rank-badge is-empty" title="CSRankings 里没有找到这所学校">未排名</span>`;
-    return `<span class="rank-badge" title="${attr(rankTitle(r))}"><span class="rk-cs">#${r.cs ?? "—"}</span><span class="rk-ai">AI #${r.ai ?? "—"}</span></span>`;
+    const ed = S.summary?.rankings?.edition || "";
+    if (!r) return `<span class="rank-badge is-empty" title="排名表里还没有这所学校（dashboard/app/rankings.json）">无排名</span>`;
+    const title = `U.S. News ${ed} 计算机科学研究生排名 #${r.rank}（U.S. News 名称：${r.name}）`;
+    return `<span class="rank-badge" title="${attr(title)}"><span class="rk-src">US News</span><span class="rk-cs">#${r.rank}</span></span>`;
   }
 
   // ------------------------------------------------------------ gmail pill
@@ -204,6 +202,7 @@
   function renderOverview() {
     S.detail = null;
     $("#crumb").textContent = "总览";
+    chatSync();
     renderTree();
     const sm = S.summary;
     if (!sm) return;
@@ -253,7 +252,7 @@
         <section>
           <h2 class="section-title">学校</h2>
           <table class="schools">
-            <thead><tr><th title="CSRankings 美国：综合 / AI 方向">排名</th><th>学校</th><th>截止</th><th>已联系</th><th>回音</th></tr></thead>
+            <thead><tr><th title="U.S. News 计算机科学研究生排名">US News</th><th>学校</th><th>截止</th><th>已联系</th><th>回音</th></tr></thead>
             <tbody>${sm.schools.map((s) => {
               const left = daysUntil(s.deadline);
               return `<tr class="${rankClass(s.rank)}">
@@ -265,7 +264,7 @@
               </tr>`;
             }).join("")}</tbody>
           </table>
-          ${sm.rankings?.years ? `<p class="hint">排名来自 CSRankings 美国榜（${esc(sm.rankings.years)}，数据 ${esc(sm.rankings.data_version || "")}）：前一个数字是综合排名，后一个是 AI 方向（AI、视觉、ML、NLP、信息检索）。</p>` : ""}
+          ${sm.rankings?.edition ? `<p class="hint">排名：U.S. News ${esc(sm.rankings.edition)} 计算机科学研究生排名（${esc(sm.rankings.checked_on || "")} 查询）。金色为前 20，蓝色为 21–50。</p>` : ""}
         </section>
       </div>`;
   }
@@ -280,6 +279,7 @@
       const keepDraft = same ? S.draftName : "";
       S.tab = tab || (same && S.tab) || "letter";
       S.detail = d; S.dirty = false;
+      chatSync();
       const names = d.drafts.map((x) => x.name);
       S.draftName = names.includes(keepDraft) ? keepDraft : (d.drafts.find((x) => x.primary) || d.drafts[0] || {}).name || "";
       S.draft = null; S.check = null;
@@ -791,6 +791,195 @@
     finally { b.disabled = !S.gmail?.connected; b.textContent = "同步 Gmail"; }
   });
 
+  // ------------------------------------------------------------ Claude Code chat
+  // Runs the local `claude` CLI through POST /api/chat and renders its stream.
+  // The transcript is kept per campaign in localStorage (this browser only).
+  const CH = { open: false, running: false, abort: null, status: null, log: [], session: "", cur: null };
+  const chatKey = () => `phd-chat:${S.campaign}`;
+  function chatLoad() {
+    try {
+      const v = JSON.parse(localStorage.getItem(chatKey()) || "null");
+      CH.log = Array.isArray(v?.log) ? v.log : []; CH.session = v?.session || "";
+    } catch (e) { CH.log = []; CH.session = ""; }
+  }
+  function chatSave() {
+    try { localStorage.setItem(chatKey(), JSON.stringify({ session: CH.session, log: CH.log.slice(-120) })); } catch (e) { /* storage off */ }
+  }
+
+  // Minimal, safe markdown: escape first, then **bold**, `code`, links, bullets, line breaks.
+  function md2html(s) {
+    let h = esc(s);
+    h = h.replace(/```([\s\S]*?)```/g, (_, c) => `<pre>${c.replace(/^\w*\n/, "")}</pre>`);
+    h = h.replace(/`([^`\n]+)`/g, "<code>$1</code>");
+    h = h.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
+    h = h.replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    h = h.replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, '$1<a href="$2" target="_blank" rel="noopener noreferrer">$2</a>');
+    h = h.replace(/^#{1,4} (.+)$/gm, "<strong>$1</strong>");
+    h = h.replace(/^(?:[-*]|\d+\.) (.+)$/gm, "<span class=\"li\">$1</span>");
+    return h.replace(/\n/g, "<br>").replace(/<\/pre><br>/g, "</pre>").replace(/(<span class="li">.*?<\/span>)<br>/g, "$1");
+  }
+
+  function chatItem(m) {
+    if (m.role === "user") return `<div class="cmsg cmsg-user">${esc(m.text).replace(/\n/g, "<br>")}</div>`;
+    if (m.role === "assistant") return `<div class="cmsg cmsg-ai">${md2html(m.text)}</div>`;
+    if (m.role === "tool") {
+      const st = m.state === "error" ? `<span class="tool-st bad">失败</span>` : m.state === "ok" ? `<span class="tool-st">✓</span>` : `<span class="tool-st run"></span>`;
+      return `<div class="cmsg-tool" title="${attr(m.preview || "")}">${st}<span class="tool-l">${esc(m.label)}</span><span class="tool-s">${esc(m.summary || "")}</span></div>`;
+    }
+    if (m.role === "meta") return `<div class="cmsg-meta${m.bad ? " bad" : ""}">${esc(m.text)}</div>`;
+    return "";
+  }
+
+  function chatRender(scroll = true) {
+    const log = $("#chat-log");
+    if (!log) return;
+    if (!CH.log.length) {
+      const t = S.detail?.target;
+      const tips = t
+        ? [`查一下 ${t.professor} 最近一年的论文和招生信息`, `给 ${t.professor} 写一封首封草稿`, `${t.professor} 的方向和我匹配吗？`]
+        : ["这个申请季哪些跟进到期了？", "找出回复过我、但还没跟进的教授", "帮我把明确招 Fall 2027 的教授列出来"];
+      log.innerHTML = `<div class="chat-empty">
+        <p>这里直接调用你电脑上的 <strong>Claude Code</strong>，在仓库里工作：会读 <code>cold-email</code> skill，能改 <code>targets.csv</code> 和草稿，改完面板会自动刷新。它<strong>不能发邮件</strong>。</p>
+        <div class="chat-tips">${tips.map((x) => `<button class="chip-filter" data-chat-tip="${attr(x)}">${esc(x)}</button>`).join("")}</div>
+      </div>`;
+    } else {
+      log.innerHTML = CH.log.map(chatItem).join("");
+    }
+    if (scroll) log.scrollTop = log.scrollHeight;
+  }
+
+  function chatCtxLabel() {
+    const el = $("#chat-ctx");
+    if (!el) return;
+    const t = S.detail?.target;
+    el.textContent = t ? `${campaignLabel(S.campaign)} · ${t.professor}` : campaignLabel(S.campaign);
+  }
+
+  function chatControls() {
+    $("#chat-send").hidden = CH.running;
+    $("#chat-stop").hidden = !CH.running;
+    $("#chat-input").disabled = CH.running || CH.status?.available === false;
+    const s = $("#chat-status");
+    if (CH.status?.available === false) s.textContent = CH.status.detail || "Claude Code 不可用";
+    else if (CH.running) s.textContent = "Claude 正在处理…";
+    else s.textContent = CH.session ? "继续当前对话" : (CH.status?.version ? `Claude Code ${CH.status.version.replace(/\s*\(Claude Code\)/, "")}` : "");
+  }
+
+  async function chatOpen(open = !CH.open) {
+    CH.open = open;
+    document.body.classList.toggle("chat-open", open);
+    $("#chat").hidden = !open;
+    $("#chat-toggle").setAttribute("aria-expanded", String(open));
+    try { localStorage.setItem("phd-chat-open", open ? "1" : ""); } catch (e) { /* ignore */ }
+    if (!open) return;
+    chatCtxLabel(); chatRender(); chatControls();
+    if (!CH.status) {
+      try { CH.status = await api("GET", "/chat/status"); } catch (e) { CH.status = { available: false, detail: e.message }; }
+      chatControls();
+    }
+    $("#chat-input").focus();
+  }
+
+  function chatSync() {
+    if (!CH.open) return;
+    chatCtxLabel();
+    if (!CH.log.length) chatRender();
+  }
+
+  function chatPush(m) { CH.log.push(m); chatRender(); return m; }
+
+  async function chatSend(text) {
+    text = text.trim();
+    if (!text || CH.running) return;
+    chatPush({ role: "user", text });
+    $("#chat-input").value = "";
+    CH.running = true; CH.cur = null; chatControls();
+    const tools = {};
+    const ctrl = new AbortController(); CH.abort = ctrl;
+    let changed = false;
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST", signal: ctrl.signal,
+        headers: { "Authorization": `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, session_id: CH.session || undefined, campaign: S.campaign || undefined, target_id: S.detail?.target?.target_id }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(Array.isArray(d.detail) ? d.detail.map((x) => x.msg).join("；") : d.detail || `请求失败（${res.status}）`);
+      }
+      const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = "";
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let i;
+        while ((i = buf.indexOf("\n\n")) >= 0) {
+          const frame = buf.slice(0, i); buf = buf.slice(i + 2);
+          const line = frame.split("\n").find((l) => l.startsWith("data: "));
+          if (!line) continue;
+          let ev; try { ev = JSON.parse(line.slice(6)); } catch (e) { continue; }
+          if (ev.type === "session" && ev.session_id) { CH.session = ev.session_id; }
+          else if (ev.type === "text_delta") {
+            if (!CH.cur) CH.cur = chatPush({ role: "assistant", text: "" });
+            CH.cur.text += ev.text; chatRender();
+          } else if (ev.type === "text") {
+            if (CH.cur) CH.cur.text = ev.text; else CH.cur = chatPush({ role: "assistant", text: ev.text });
+            CH.cur = null; chatRender();
+          } else if (ev.type === "tool") {
+            CH.cur = null;
+            tools[ev.id] = chatPush({ role: "tool", label: ev.label, summary: ev.summary, state: "run" });
+            if (["Edit", "MultiEdit", "Write"].includes(ev.name)) changed = true;
+          } else if (ev.type === "tool_result") {
+            const t = tools[ev.id]; if (t) { t.state = ev.is_error ? "error" : "ok"; t.preview = ev.preview; chatRender(false); }
+          } else if (ev.type === "done") {
+            if (ev.session_id) CH.session = ev.session_id;
+            const bits = [];
+            if (ev.duration_ms) bits.push(`${Math.round(ev.duration_ms / 1000)} 秒`);
+            if (typeof ev.cost_usd === "number") bits.push(`约 $${ev.cost_usd.toFixed(3)}`);
+            if (ev.denied?.length) bits.push(`被拦下：${[...new Set(ev.denied)].join("、")}`);
+            if (ev.is_error) chatPush({ role: "meta", text: ev.result || "Claude 返回了错误", bad: true });
+            if (bits.length) chatPush({ role: "meta", text: bits.join(" · ") });
+          } else if (ev.type === "stopped") { chatPush({ role: "meta", text: "已停止。" }); }
+          else if (ev.type === "error") { chatPush({ role: "meta", text: ev.message, bad: true }); }
+        }
+      }
+    } catch (e) {
+      if (e.name === "AbortError") chatPush({ role: "meta", text: "已停止。" });
+      else chatPush({ role: "meta", text: e.message, bad: true });
+    } finally {
+      CH.running = false; CH.abort = null; CH.cur = null;
+      for (const t of Object.values(tools)) if (t.state === "run") t.state = "ok";
+      chatSave(); chatRender(); chatControls();
+      if (changed && !S.dirty) {
+        try { await loadCampaign(); S.detail ? await refreshDetail() : renderOverview(); toast("Claude 改了文件，面板已刷新"); } catch (e) { /* ignore */ }
+      }
+    }
+  }
+
+  async function chatStop() {
+    if (CH.abort) CH.abort.abort();
+    try { await api("POST", "/chat/stop"); } catch (e) { /* ignore */ }
+  }
+
+  function chatNew() {
+    if (CH.running) return;
+    CH.log = []; CH.session = ""; chatSave(); chatRender(); chatControls();
+    $("#chat-input").focus();
+  }
+
+  $("#chat-toggle").addEventListener("click", () => chatOpen());
+  $("#chat-close").addEventListener("click", () => chatOpen(false));
+  $("#chat-new").addEventListener("click", chatNew);
+  $("#chat-stop").addEventListener("click", chatStop);
+  $("#chat-form").addEventListener("submit", (e) => { e.preventDefault(); chatSend($("#chat-input").value); });
+  $("#chat-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); chatSend(e.target.value); }
+  });
+  $("#chat-log").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-chat-tip]");
+    if (b) { $("#chat-input").value = b.dataset.chatTip; $("#chat-input").focus(); }
+  });
+
   // ------------------------------------------------------------ routing
   async function route() {
     const h = location.hash;
@@ -824,6 +1013,7 @@
   async function switchCampaign(id) {
     if (S.dirty && !confirm("当前草稿还没保存，确定切换申请季吗？")) { $("#campaign").value = S.campaign; return; }
     S.dirty = false; S.detail = null; S.campaign = id; rememberCampaign(id);
+    if (!CH.running) { chatLoad(); chatRender(); chatControls(); }
     await loadCampaign();
     if (location.hash !== "#/") location.hash = "#/"; else renderOverview();
   }
@@ -866,8 +1056,10 @@
       const byTargets = [...S.campaigns].sort((a, b) => b.targets - a.targets)[0].id;
       S.campaign = S.campaigns.some((c) => c.id === remembered) ? remembered : byTargets;
       renderCampaignSelect();
+      chatLoad();
       await loadCampaign();
       route();
+      try { if (localStorage.getItem("phd-chat-open")) chatOpen(true); } catch (e) { /* ignore */ }
     } catch (e) {
       main.innerHTML = `<div class="empty-main"><h1>连不上面板服务</h1><p>${esc(e.message)}</p></div>`;
     }

@@ -11,6 +11,7 @@ Security model (local, single user):
 
 from __future__ import annotations
 
+import json
 import os
 import secrets
 import urllib.parse
@@ -19,16 +20,18 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from .chat import ChatRunner
 from .gmail import GmailClient, GmailError, Transport, urllib_transport
 from .store import Store, StoreError
 from .sync import GmailState, push_draft, sync_campaign
 
 STATIC = Path(__file__).resolve().parent.parent / "static"
+REPO_ROOT = STATIC.parent.parent
 LOOPBACK = {"localhost", "127.0.0.1", "[::1]", "::1"}
 
 
@@ -89,11 +92,22 @@ class SyncRequest(BaseModel):
     target_ids: Optional[list[str]] = None
 
 
+class ChatRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=20000)
+    session_id: Optional[str] = Field(None, pattern=r"^[A-Za-z0-9][A-Za-z0-9-]{7,63}$",
+                                      description="Continue this Claude Code session (from an earlier `session` event)")
+    campaign: Optional[str] = Field(None, description="Campaign shown in the dashboard; passed to Claude as context")
+    target_id: Optional[str] = Field(None, description="Professor open in the dashboard; passed to Claude as context")
+    model: Optional[str] = Field(None, pattern=r"^[A-Za-z0-9][A-Za-z0-9.\-\[\]]{0,63}$", description="e.g. sonnet, opus")
+
+
 # ------------------------------------------------------------------ app
 
 def create_app(data_dir: Path, state_dir: Path, gmail_transport: Transport = urllib_transport,
-               allowed_hosts: set[str] | None = None, today: date | None = None) -> FastAPI:
+               allowed_hosts: set[str] | None = None, today: date | None = None,
+               claude_bin: str | None = None, workdir: Path | None = None) -> FastAPI:
     store = Store(data_dir)
+    chat = ChatRunner(workdir or REPO_ROOT, Path(data_dir), claude_bin)
     state_dir = Path(state_dir)
     gmail = GmailClient(state_dir, gmail_transport)
     gstate = GmailState(state_dir)
@@ -279,6 +293,33 @@ def create_app(data_dir: Path, state_dir: Path, gmail_transport: Transport = url
             return {"messages": [], "note": "还没有同步到与该教授的邮件；先点“同步 Gmail”。"}
         latest = max(msgs, key=lambda m: m["timestamp"])
         return {"thread_id": latest["thread_id"], "messages": gmail.thread(latest["thread_id"])}
+
+    # ------------------------------------------------------- Claude Code chat
+    @api.get("/chat/status", tags=["chat"], summary="Whether the Claude Code CLI is available")
+    def chat_status():
+        return chat.status()
+
+    @api.post("/chat", tags=["chat"],
+              summary="Send a message to Claude Code; streams Server-Sent Events (session, text_delta, text, tool, tool_result, done, error)")
+    async def chat_send(body: ChatRequest):
+        target = None
+        if body.campaign and body.target_id:
+            try:
+                target = store.target(body.campaign, body.target_id)
+            except StoreError:
+                target = None
+        context = ChatRunner.context_block(body.campaign, target, chat.data_dir)
+
+        async def events():
+            async for ev in chat.run(body.message, body.session_id, body.model, context):
+                yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
+
+        return StreamingResponse(events(), media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
+
+    @api.post("/chat/stop", tags=["chat"], summary="Stop the running Claude Code reply")
+    async def chat_stop():
+        return {"stopped": await chat.stop()}
 
     app.include_router(api)
 

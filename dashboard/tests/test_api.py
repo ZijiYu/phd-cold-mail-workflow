@@ -84,7 +84,7 @@ class TrackerTests(Base):
         self.assertEqual([d["target_id"] for d in s["due"]], ["lakeview--marcus-hale", "pinecrest--omar-said"])
         self.assertEqual(s["schools"][0]["institution"], "Northfield Institute of Technology")  # earliest deadline
         self.assertIn("rank", s["schools"][0])  # fictional schools are unranked (None)
-        self.assertIn("CSRankings", s["rankings"]["source"])
+        self.assertIn("U.S. News", s["rankings"]["source"])
 
     def test_filters(self):
         self.assertEqual(len(self.c.get(f"{C}/targets?status=sent").json()), 3)
