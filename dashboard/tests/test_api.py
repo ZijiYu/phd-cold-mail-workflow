@@ -42,9 +42,11 @@ class Base(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp)
 
+    CLIENT = {"installed": {"client_id": "123456789-abcdef.apps.googleusercontent.com", "client_secret": "secret",
+                            "redirect_uris": ["http://localhost"]}}
+
     def connect_gmail(self):
-        (self.tmp / "state" / "google_client.json").write_text(json.dumps(
-            {"installed": {"client_id": "cid.apps.googleusercontent.com", "client_secret": "secret"}}))
+        (self.tmp / "state" / "google_client.json").write_text(json.dumps(self.CLIENT))
         r = self.c.post("/api/gmail/connect").json()
         state = urllib.parse.parse_qs(urllib.parse.urlparse(r["auth_url"]).query)["state"][0]
         resp = self.c.get(f"/auth/google/callback?code=good-code&state={state}", follow_redirects=False)
@@ -232,6 +234,70 @@ class GmailTests(Base):
         raw = base64.urlsafe_b64decode(sent["raw"] + "==").decode()
         self.assertIn("In-Reply-To: <m7@mail.example.com>", raw)
         self.assertIn("To: imoreau@example.edu", raw)
+
+    def test_save_client_returns_auth_url(self):
+        r = self.c.put("/api/gmail/client", json={"json": self.CLIENT})
+        self.assertEqual(r.status_code, 200, r.text)
+        body = r.json()
+        self.assertTrue(body["status"]["configured"])
+        q = urllib.parse.parse_qs(urllib.parse.urlparse(body["auth_url"]).query)
+        self.assertEqual(q["client_id"], ["123456789-abcdef.apps.googleusercontent.com"])
+        self.assertEqual((self.tmp / "state" / "google_client.json").stat().st_mode & 0o777, 0o600)
+        # pasted values work too
+        r = self.c.put("/api/gmail/client", json={"client_id": "987654321-zzz.apps.googleusercontent.com", "client_secret": "s2"})
+        self.assertEqual(r.status_code, 200)
+
+    def test_save_client_rejects_bad_input(self):
+        web = {"web": {"client_id": "123456789-abc.apps.googleusercontent.com", "client_secret": "s"}}
+        r = self.c.put("/api/gmail/client", json={"json": web})
+        self.assertEqual((r.status_code, r.json()["code"]), (400, "client_type"))
+        r = self.c.put("/api/gmail/client", json={"client_id": "not-an-id", "client_secret": "s"})
+        self.assertEqual(r.json()["code"], "client_id")
+        r = self.c.put("/api/gmail/client", json={"client_id": "123456789-abc.apps.googleusercontent.com"})
+        self.assertEqual(r.json()["code"], "client_secret")
+        self.assertFalse(self.c.get("/api/gmail/status").json()["configured"])
+
+    def test_expired_token_asks_for_reauth_with_login_hint(self):
+        self.connect_gmail()
+        tok = json.loads((self.tmp / "state" / "google_token.json").read_text())
+        tok["expires_at"] = 0  # force a refresh
+        (self.tmp / "state" / "google_token.json").write_text(json.dumps(tok))
+        self.google.refresh_error = "invalid_grant"
+        r = self.c.post(f"{C}/gmail/sync", json={})
+        self.assertEqual((r.status_code, r.json()["code"]), (401, "gmail_reauth"))
+        s = self.c.get("/api/gmail/status").json()
+        self.assertEqual((s["connected"], s["reauth"], s["reauth_email"]), (False, True, ME))
+        url = self.c.post("/api/gmail/connect").json()["auth_url"]
+        self.assertIn("login_hint=" + urllib.parse.quote(ME), url)
+        self.google.refresh_error = ""
+        self.connect_gmail()
+        self.assertFalse(self.c.get("/api/gmail/status").json()["reauth"])
+
+    def test_missing_scopes(self):
+        self.google.granted_scopes = "https://www.googleapis.com/auth/gmail.compose"
+        (self.tmp / "state" / "google_client.json").write_text(json.dumps(self.CLIENT))
+        url = self.c.post("/api/gmail/connect").json()["auth_url"]
+        state = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)["state"][0]
+        loc = self.c.get(f"/auth/google/callback?code=good-code&state={state}", follow_redirects=False).headers["location"]
+        self.assertIn("gmail-error=", loc)
+        self.assertFalse(self.c.get("/api/gmail/status").json()["connected"])
+        # read-only grant connects but cannot push drafts
+        self.google.granted_scopes = "https://www.googleapis.com/auth/gmail.readonly"
+        self.connect_gmail()
+        s = self.c.get("/api/gmail/status").json()
+        self.assertEqual((s["can_read"], s["can_draft"]), (True, False))
+        r = self.c.post(f"{C}/targets/harbor--priya-raman/drafts/harbor--priya-raman.md/gmail")
+        self.assertEqual(r.json()["code"], "missing_scope")
+
+    def test_access_denied_is_friendly(self):
+        loc = self.c.get("/auth/google/callback?error=access_denied", follow_redirects=False).headers["location"]
+        self.assertIn(urllib.parse.quote("测试用户"), loc)
+
+    def test_remove_client(self):
+        self.connect_gmail()
+        s = self.c.delete("/api/gmail/client").json()
+        self.assertEqual((s["configured"], s["connected"]), (False, False))
+        self.assertTrue(self.google.revoked)
 
     def test_disconnect(self):
         self.connect_gmail()

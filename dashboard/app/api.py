@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import secrets
+import urllib.parse
 from datetime import date
 from pathlib import Path
 from typing import Optional
@@ -65,6 +66,14 @@ class TargetPatch(BaseModel):
 
 class CampaignCreate(BaseModel):
     id: str = Field(..., examples=["fall-2027"], description="Folder name under the data folder")
+
+
+class GoogleClient(BaseModel):
+    """Either the downloaded client JSON (as an object) or the two values pasted in."""
+    json_file: Optional[dict] = Field(None, alias="json", description='Contents of the downloaded file, e.g. {"installed": {...}}')
+    client_id: str = ""
+    client_secret: str = ""
+    model_config = {"populate_by_name": True}
 
 
 class DraftCreate(BaseModel):
@@ -121,7 +130,7 @@ def create_app(data_dir: Path, state_dir: Path, gmail_transport: Transport = url
 
     @app.exception_handler(GmailError)
     async def gmail_error(_, exc: GmailError):
-        return JSONResponse({"detail": str(exc)}, status_code=exc.status)
+        return JSONResponse({"detail": str(exc), "code": exc.code}, status_code=exc.status)
 
     bearer = HTTPBearer(auto_error=False, description="API token from <state_dir>/api_token")
 
@@ -231,10 +240,25 @@ def create_app(data_dir: Path, state_dir: Path, gmail_transport: Transport = url
     def gmail_status():
         return gmail.status()
 
+    def _redirect_uri(request: Request) -> str:
+        return str(request.base_url).rstrip("/") + "/auth/google/callback"
+
     @api.post("/gmail/connect", tags=["gmail"], summary="Start Google OAuth; returns the URL to open")
     def gmail_connect(request: Request):
-        redirect_uri = str(request.base_url).rstrip("/") + "/auth/google/callback"
+        redirect_uri = _redirect_uri(request)
         return {"auth_url": gmail.start_auth(redirect_uri), "redirect_uri": redirect_uri}
+
+    @api.put("/gmail/client", tags=["gmail"],
+             summary="Save the Google OAuth client (downloaded JSON, or client_id + client_secret); returns the auth URL")
+    def gmail_set_client(body: GoogleClient, request: Request):
+        gmail.save_client(body.json_file, body.client_id, body.client_secret)
+        redirect_uri = _redirect_uri(request)
+        return {"status": gmail.status(), "auth_url": gmail.start_auth(redirect_uri), "redirect_uri": redirect_uri}
+
+    @api.delete("/gmail/client", tags=["gmail"], summary="Disconnect and forget the Google OAuth client")
+    def gmail_remove_client():
+        gmail.remove_client()
+        return gmail.status()
 
     @api.post("/gmail/disconnect", tags=["gmail"], summary="Revoke and delete the local Gmail token")
     def gmail_disconnect():
@@ -262,11 +286,14 @@ def create_app(data_dir: Path, state_dir: Path, gmail_transport: Transport = url
     @app.get("/auth/google/callback", include_in_schema=False)
     def oauth_callback(code: str = "", state: str = "", error: str = ""):
         if error:
-            return RedirectResponse(f"/#gmail-error={error}")
+            friendly = {
+                "access_denied": "你在 Google 页面取消了授权，或这个 Gmail 不在测试用户名单里。",
+            }.get(error, error)
+            return RedirectResponse(f"/#gmail-error={urllib.parse.quote(friendly)}")
         try:
             gmail.finish_auth(code, state)
         except GmailError as e:
-            return RedirectResponse(f"/#gmail-error={str(e)[:200]}")
+            return RedirectResponse(f"/#gmail-error={urllib.parse.quote(str(e)[:300])}")
         return RedirectResponse("/#gmail=connected")
 
     @app.get("/", include_in_schema=False, response_class=HTMLResponse)

@@ -138,7 +138,7 @@ def sync_campaign(store: Store, client: GmailClient, state: GmailState, campaign
             incoming = client.search(q_in, 10)
             bounces = client.search(f"from:(mailer-daemon OR postmaster) {email}", 3) if (outgoing or row.get("sent_at")) else []
         except GmailError as e:
-            if e.status in (400, 409):
+            if e.status in (400, 401, 409):
                 raise
             errors.append({"target_id": row["target_id"], "error": str(e)})
             continue
@@ -161,6 +161,8 @@ def push_draft(store: Store, client: GmailClient, state: GmailState, campaign: s
     row = store.target(campaign, target_id)
     if not row.get("email"):
         raise StoreError("该教授还没有核实过的邮箱地址", 409)
+    if not client.status()["can_draft"]:
+        raise GmailError("当前授权没有“管理草稿”权限。请重新连接 Gmail，并勾选两项权限。", 409, "missing_scope")
     info = next((d for d in store.drafts(campaign, target_id) if d["name"] == name), None)
     if info is None:
         raise StoreError(f"draft {name!r} not found", 404)

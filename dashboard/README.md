@@ -93,21 +93,32 @@ docker compose -f dashboard/compose.yaml down            # 停止
 
 ## 绑定 Gmail
 
-面板通过**你自己的** Google Cloud 项目连接 Gmail，凭据只保存在你的电脑上。
+面板通过**你自己的** Google Cloud OAuth 客户端连接 Gmail（Google 不允许跳过这一步），凭据只保存在你的电脑上。全部在面板里完成：
 
-1. 打开 [Google Cloud Console](https://console.cloud.google.com/)，新建一个项目。
-2. 在“API 和服务 → 库”里启用 **Gmail API**。
-3. 配置 **OAuth 同意屏幕**：用户类型选 External，发布状态保持 Testing，并把你自己的 Gmail 地址加为测试用户。
-4. 在“凭据”里创建 **OAuth 客户端 ID**，应用类型选 **桌面应用（Desktop app）**，然后下载 JSON。
-5. 把下载的文件保存为 `~/.phd-outreach-dashboard/google_client.json`。
-6. 刷新面板，点右上角的“连接 Gmail”，在 Google 页面完成授权。
+1. 点右上角 **“连接 Gmail”**，打开设置向导。向导里每一步都有“打开”按钮，直接跳到 Google Cloud 对应的页面：
+   1. 启用 Gmail API（没有项目会先让你建一个）；
+   2. 设置授权页面：用户类型选 External，不用提交审核；
+   3. 在 Audience → Test users 里加上你自己的 Gmail；
+   4. 创建客户端，类型选 **桌面应用（Desktop app）**，下载 JSON。
+2. 把下载的 JSON **拖进向导**（也可以手动填写客户端 ID 和密钥），点 **“保存并前往 Google 授权”**，页面会直接跳到 Google 授权页。
+3. 在 Google 页面选择账号，勾选两项权限，授权后自动回到面板。
+
+之后再连接，或者授权过期需要续期，都是点一下按钮直接跳到 Google 授权页，并且预选好你的账号。
 
 申请的权限只有两项：
 
-- `gmail.readonly`：查找发给教授的邮件、教授的回信和退信，读取邮件线程。
-- `gmail.compose`：创建和更新草稿。
+- `gmail.readonly`：查找发给教授的邮件、教授的回信和退信，读取邮件线程。没勾选这一项时，面板不会保存授权，并会提示你重新连接。
+- `gmail.compose`：创建和更新草稿。没勾选时，面板可以同步回信，但不能推送草稿，右上角会提示“缺草稿权限”。
 
-Google 没有“只能管理草稿”的权限，`gmail.compose` 在技术上也允许发送。这个面板的代码从不调用发送接口，测试里也专门检查了这一点。Testing 状态下的授权大约 7 天后会失效，到时重新点一次“连接 Gmail”即可。
+Google 没有“只能管理草稿”的权限，`gmail.compose` 在技术上也允许发送。这个面板的代码从不调用发送接口，测试里也专门检查了这一点。
+
+**7 天过期**：Testing 状态下，Google 的授权大约 7 天后失效。面板会自动识别，右上角显示“Gmail 授权已过期 · 重新连接”，点一下就能续期。
+
+**常见问题**
+
+- Google 显示“应用被阻止”或“access_denied”：你的 Gmail 不在测试用户名单里（第 3 步）。
+- `redirect_uri_mismatch`：客户端类型选成了“Web 应用”。向导会拒绝这种文件，请重建为“桌面应用”。
+- 想换一个 Google 客户端：点邮箱旁边的“…”，选“更换 Google 客户端”。
 
 ### 同步规则
 

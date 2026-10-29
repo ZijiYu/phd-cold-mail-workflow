@@ -44,9 +44,14 @@ Transport = Callable[[str, str, dict, "bytes | None"], "tuple[int, bytes]"]
 
 
 class GmailError(Exception):
-    def __init__(self, message: str, status: int = 502):
+    def __init__(self, message: str, status: int = 502, code: str = ""):
         super().__init__(message)
         self.status = status
+        self.code = code
+
+
+CLIENT_ID_RE = re.compile(r"^[0-9]+-[a-z0-9]+\.apps\.googleusercontent\.com$")
+READ_SCOPE, COMPOSE_SCOPE = SCOPES
 
 
 def urllib_transport(method: str, url: str, headers: dict, body: bytes | None) -> tuple[int, bytes]:
@@ -82,6 +87,7 @@ class GmailClient:
         self.state_dir = Path(state_dir)
         self.client_file = self.state_dir / "google_client.json"
         self.token_file = self.state_dir / "google_token.json"
+        self.reauth_file = self.state_dir / "google_reauth.json"
         self.transport = transport
         self._pending: dict[str, dict] = {}  # oauth state -> {verifier, redirect_uri, created}
 
@@ -95,18 +101,62 @@ class GmailClient:
             return None
         return cfg
 
+    def save_client(self, downloaded: dict | None = None, client_id: str = "", client_secret: str = "") -> dict:
+        """Store the OAuth client from the downloaded JSON or from pasted values."""
+        if downloaded:
+            if "web" in downloaded and "installed" not in downloaded:
+                raise GmailError("这个凭据是“Web 应用”类型。请在 Google Cloud 里新建一个“桌面应用”（Desktop app）类型的客户端，再下载它的 JSON。", 400, "client_type")
+            cfg = downloaded.get("installed") or downloaded
+            client_id = str(cfg.get("client_id", ""))
+            client_secret = str(cfg.get("client_secret", ""))
+        client_id, client_secret = client_id.strip(), client_secret.strip()
+        if not CLIENT_ID_RE.match(client_id):
+            raise GmailError("客户端 ID 格式不对，应该形如 123456789-xxxx.apps.googleusercontent.com。", 400, "client_id")
+        if not client_secret:
+            raise GmailError("缺少客户端密钥（client secret）。下载的 JSON 文件里有，或在客户端详情页复制。", 400, "client_secret")
+        old = self.client_config()
+        if old and old.get("client_id") != client_id:
+            self.token_file.unlink(missing_ok=True)  # tokens belong to the old client
+        _write_private(self.client_file, {"installed": {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "auth_uri": AUTH_URL,
+            "token_uri": TOKEN_URL,
+        }})
+        return self.status()
+
+    def remove_client(self) -> None:
+        self.disconnect()
+        self.client_file.unlink(missing_ok=True)
+        self.reauth_file.unlink(missing_ok=True)
+
     def _token(self) -> dict | None:
         if not self.token_file.is_file():
             return None
         return json.loads(self.token_file.read_text(encoding="utf-8"))
 
+    def _reauth(self) -> dict:
+        if not self.reauth_file.is_file():
+            return {}
+        try:
+            return json.loads(self.reauth_file.read_text(encoding="utf-8"))
+        except ValueError:
+            return {}
+
     def status(self) -> dict:
         tok = self._token()
+        connected = bool(tok and tok.get("refresh_token"))
+        scopes = (tok or {}).get("scope", "").split()
+        reauth = {} if connected else self._reauth()
         return {
             "configured": self.client_config() is not None,
-            "connected": bool(tok and tok.get("refresh_token")),
+            "connected": connected,
             "email": (tok or {}).get("email", ""),
-            "scopes": (tok or {}).get("scope", "").split(),
+            "scopes": scopes,
+            "can_read": connected and READ_SCOPE in scopes,
+            "can_draft": connected and COMPOSE_SCOPE in scopes,
+            "reauth": bool(reauth),
+            "reauth_email": reauth.get("email", ""),
             "client_file": str(self.client_file),
         }
 
@@ -114,7 +164,7 @@ class GmailClient:
     def start_auth(self, redirect_uri: str) -> str:
         cfg = self.client_config()
         if not cfg:
-            raise GmailError(f"Google OAuth client not configured: put the downloaded client JSON at {self.client_file}", 400)
+            raise GmailError("还没有设置 Google OAuth 客户端，先完成“连接 Gmail”里的设置步骤。", 400, "not_configured")
         now = time.time()
         self._pending = {k: v for k, v in self._pending.items() if now - v["created"] < 600}
         state = secrets.token_urlsafe(24)
@@ -133,6 +183,9 @@ class GmailClient:
             "code_challenge": challenge,
             "code_challenge_method": "S256",
         }
+        hint = (self._token() or {}).get("email") or self._reauth().get("email")
+        if hint:
+            params["login_hint"] = hint  # Google pre-selects the account
         return f"{AUTH_URL}?{urllib.parse.urlencode(params)}"
 
     def finish_auth(self, code: str, state: str) -> dict:
@@ -151,11 +204,15 @@ class GmailClient:
             "code_verifier": pending["verifier"],
         })
         if not tok.get("refresh_token"):
-            raise GmailError("Google did not return a refresh token; remove the app's access in your Google account and connect again", 400)
+            raise GmailError("Google 没有返回长期授权。请到 Google 账号的“第三方应用访问权限”里移除这个应用，再连接一次。", 400, "no_refresh_token")
+        granted = tok.get("scope", "").split()
+        if READ_SCOPE not in granted:
+            raise GmailError("授权时没有勾选“查看你的电子邮件”，面板无法识别回信。请重新连接，并勾选两项权限。", 400, "missing_scope")
         _write_private(self.token_file, tok)
         profile = self.api("GET", "/profile")
         tok["email"] = profile.get("emailAddress", "")
         _write_private(self.token_file, tok)
+        self.reauth_file.unlink(missing_ok=True)
         return self.status()
 
     def disconnect(self) -> None:
@@ -173,7 +230,8 @@ class GmailClient:
                                       urllib.parse.urlencode(form).encode())
         data = json.loads(body or b"{}")
         if status != 200:
-            raise GmailError(f"token request failed: {data.get('error_description') or data.get('error') or status}", 400)
+            raise GmailError(f"token request failed: {data.get('error_description') or data.get('error') or status}",
+                             400, str(data.get("error", "")))
         data["expires_at"] = time.time() + int(data.get("expires_in", 3600)) - 60
         return data
 
@@ -185,13 +243,22 @@ class GmailClient:
             return tok["access_token"]
         cfg = self.client_config()
         if not cfg:
-            raise GmailError("Google OAuth client not configured", 400)
-        fresh = self._token_request({
-            "grant_type": "refresh_token",
-            "refresh_token": tok["refresh_token"],
-            "client_id": cfg["client_id"],
-            "client_secret": cfg["client_secret"],
-        })
+            raise GmailError("Google OAuth client not configured", 400, "not_configured")
+        try:
+            fresh = self._token_request({
+                "grant_type": "refresh_token",
+                "refresh_token": tok["refresh_token"],
+                "client_id": cfg["client_id"],
+                "client_secret": cfg["client_secret"],
+            })
+        except GmailError as e:
+            if e.code != "invalid_grant":
+                raise
+            # Revoked, password changed, or the 7-day limit of a Testing-mode app.
+            _write_private(self.reauth_file, {"email": tok.get("email", ""), "at": int(time.time())})
+            self.token_file.unlink(missing_ok=True)
+            raise GmailError("Gmail 授权已失效（测试模式下 Google 授权 7 天后过期）。点右上角“重新连接 Gmail”即可。",
+                             401, "gmail_reauth")
         tok.update({k: v for k, v in fresh.items() if k != "refresh_token" or v})
         _write_private(self.token_file, tok)
         return tok["access_token"]

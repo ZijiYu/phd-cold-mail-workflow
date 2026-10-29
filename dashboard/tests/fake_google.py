@@ -45,6 +45,8 @@ class FakeGoogle:
         self.calls: list[tuple[str, str]] = []
         self.token_requests: list[dict] = []
         self.revoked = False
+        self.granted_scopes = "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.compose"
+        self.refresh_error = ""
 
     # transport signature: (method, url, headers, body) -> (status, bytes)
     def __call__(self, method, url, headers, body):
@@ -56,8 +58,10 @@ class FakeGoogle:
             self.token_requests.append(form)
             if form["grant_type"] == "authorization_code" and form.get("code") != "good-code":
                 return 400, json.dumps({"error": "invalid_grant"}).encode()
+            if form["grant_type"] == "refresh_token" and self.refresh_error:
+                return 400, json.dumps({"error": self.refresh_error, "error_description": "Token has been expired or revoked."}).encode()
             return 200, json.dumps({"access_token": f"at-{len(self.token_requests)}", "refresh_token": "rt-1",
-                                    "expires_in": 3600, "scope": "gmail.readonly gmail.compose"}).encode()
+                                    "expires_in": 3600, "scope": self.granted_scopes}).encode()
         if u.path == "/revoke":
             self.revoked = True
             return 200, b"{}"

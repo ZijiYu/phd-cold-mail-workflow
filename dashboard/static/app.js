@@ -44,7 +44,10 @@
     const data = res.status === 204 ? null : await res.json().catch(() => ({}));
     if (!res.ok) {
       const detail = Array.isArray(data?.detail) ? data.detail.map((d) => d.msg).join("；") : data?.detail;
-      throw new Error(detail || `请求失败（${res.status}）`);
+      const err = new Error(detail || `请求失败（${res.status}）`);
+      err.code = data?.code || "";
+      if (err.code === "gmail_reauth" || err.code === "missing_scope") loadGmail();
+      throw err;
     }
     return data;
   }
@@ -170,11 +173,14 @@
     const g = S.gmail;
     if (!g) { el.innerHTML = ""; sync.disabled = true; return; }
     if (!g.configured) {
-      el.innerHTML = `<span class="gmail-pill off">${'<span class="dot"></span>'}Gmail 未设置</span> <button class="btn btn-quiet" data-act="gmail-setup">设置</button>`;
+      el.innerHTML = `<button class="btn btn-accent" data-act="gmail-setup">连接 Gmail</button>`;
+    } else if (!g.connected && g.reauth) {
+      el.innerHTML = `<span class="gmail-pill warn"><span class="dot"></span>Gmail 授权已过期</span> <button class="btn btn-accent" data-act="gmail-connect">重新连接</button>`;
     } else if (!g.connected) {
-      el.innerHTML = `<span class="gmail-pill off"><span class="dot"></span>Gmail 未连接</span> <button class="btn btn-accent" data-act="gmail-connect">连接 Gmail</button>`;
+      el.innerHTML = `<button class="btn btn-accent" data-act="gmail-connect">连接 Gmail</button> <button class="btn btn-quiet" data-act="gmail-menu" aria-label="Gmail 选项">…</button>`;
     } else {
-      el.innerHTML = `<span class="gmail-pill on"><span class="dot"></span>${esc(g.email || "Gmail 已连接")}</span> <button class="btn btn-quiet" data-act="gmail-menu" aria-label="Gmail 选项">…</button>`;
+      const partial = !g.can_draft ? `<span class="gmail-pill warn" title="缺少管理草稿权限，重新连接时勾选两项">缺草稿权限</span>` : "";
+      el.innerHTML = `<span class="gmail-pill on"><span class="dot"></span>${esc(g.email || "Gmail 已连接")}</span>${partial} <button class="btn btn-quiet" data-act="gmail-menu" aria-label="Gmail 选项">…</button>`;
     }
     sync.disabled = !g.connected;
   }
@@ -508,7 +514,7 @@
     form.addEventListener("submit", async (ev) => {
       if (ev.submitter?.value === "cancel") return;
       ev.preventDefault();
-      try { await onSubmit(new FormData(form)); dlg.close(); }
+      try { await onSubmit(new FormData(form), ev.submitter?.value); dlg.close(); }
       catch (e) { const er = $("#dlg-err"); er.textContent = e.message; er.hidden = false; }
     });
     dlg.showModal();
@@ -598,26 +604,80 @@
     form.elements.target_id.addEventListener("input", (e) => (e.target.dataset.touched = "1"));
   }
 
+  const GC = "https://console.cloud.google.com";
   function gmailSetupDialog() {
-    dialog(`<h2>设置 Gmail</h2>
-      <p>面板通过你自己的 Google Cloud 项目连接 Gmail，凭据只存在这台电脑上。</p>
-      <ol>
-        <li>在 Google Cloud Console 新建项目，启用 Gmail API。</li>
-        <li>配置 OAuth 同意屏幕：用户类型选 External，状态保持 Testing，把你自己的 Gmail 加为测试用户。</li>
-        <li>创建 OAuth 客户端 ID，类型选“桌面应用”（Desktop app），下载 JSON。</li>
-        <li>把文件保存为：<br><code>${esc(S.gmail?.client_file || "")}</code></li>
-        <li>回到这里刷新页面，点“连接 Gmail”。</li>
+    const link = (href, label) => `<a class="btn btn-quiet step-link" href="${href}" target="_blank" rel="noopener">${label}</a>`;
+    dialog(`<h2>连接 Gmail</h2>
+      <p>Gmail 只允许通过你自己的 Google Cloud 授权客户端访问。下面的设置只需做一次，大约 5 分钟；之后连接、续期都是一键跳转到 Google 授权页。</p>
+      <ol class="steps">
+        <li><div><strong>启用 Gmail API</strong><span>没有项目会让你先建一个，名字随意，例如 phd-outreach。</span></div>
+          ${link(`${GC}/flows/enableapi?apiid=gmail.googleapis.com`, "打开")}</li>
+        <li><div><strong>设置授权页面</strong><span>应用名随意；用户类型选 External（外部）；邮箱都填你自己的。不用提交审核。</span></div>
+          ${link(`${GC}/auth/overview/create`, "打开")}</li>
+        <li><div><strong>把你的 Gmail 加为测试用户</strong><span>Audience → Test users → Add users。漏掉这一步，Google 会提示“应用被阻止”。</span></div>
+          ${link(`${GC}/auth/audience`, "打开")}</li>
+        <li><div><strong>创建客户端并下载</strong><span>应用类型选<b>桌面应用（Desktop app）</b>，创建后点下载，得到一个 JSON 文件。</span></div>
+          ${link(`${GC}/auth/clients/create`, "打开")}</li>
       </ol>
-      <p>权限只申请两项：读取邮件（识别回信）和管理草稿（推送草稿）。面板不会发送邮件。</p>
-      <div class="dlg-actions"><button class="btn" value="cancel" formnovalidate>知道了</button></div>`, async () => {});
+      <label class="dropzone" id="dz">
+        <input type="file" id="client-file" accept=".json,application/json" hidden>
+        <span id="dz-text">把下载的 JSON 文件拖到这里，或点击选择</span>
+      </label>
+      <details class="manual"><summary>没有文件？手动填写客户端 ID 和密钥</summary>
+        <div class="form-grid">
+          <label class="wide">客户端 ID<input name="client_id" placeholder="123456789-xxxx.apps.googleusercontent.com" autocomplete="off"></label>
+          <label class="wide">客户端密钥<input name="client_secret" type="password" autocomplete="off"></label>
+        </div>
+      </details>
+      <p class="hint">凭据只保存在你这台电脑上（<code>${esc(S.gmail?.client_file || "~/.phd-outreach-dashboard")}</code>）。授权只申请两项：查看邮件（识别回信）和管理草稿（推送草稿）。面板不会发送邮件。</p>
+      <div class="dlg-actions">${cancelBtn}<button class="btn btn-accent" id="save-client">保存并前往 Google 授权</button></div>`,
+    async (fd) => {
+      const body = S.clientJson ? { json: S.clientJson }
+        : { client_id: (fd.get("client_id") || "").trim(), client_secret: (fd.get("client_secret") || "").trim() };
+      if (!body.json && !body.client_id) throw new Error("先拖入下载的 JSON 文件，或手动填写客户端 ID 和密钥。");
+      const r = await api("PUT", "/gmail/client", body);
+      S.clientJson = null;
+      location.href = r.auth_url;
+    });
+    S.clientJson = null;
+    const dz = $("#dz"), input = $("#client-file"), text = $("#dz-text");
+    const take = async (file) => {
+      if (!file) return;
+      try {
+        const parsed = JSON.parse(await file.text());
+        const cfg = parsed.installed || parsed.web || parsed;
+        if (!cfg.client_id) throw new Error("文件里没有 client_id");
+        S.clientJson = parsed;
+        dz.classList.add("ok");
+        text.textContent = `已读取：${file.name}（${parsed.installed ? "桌面应用" : parsed.web ? "Web 应用，类型不对" : "客户端"}）`;
+      } catch (e) {
+        S.clientJson = null; dz.classList.remove("ok");
+        text.textContent = `读不出这个文件：${e.message}。请选择从 Google Cloud 下载的 JSON。`;
+      }
+    };
+    input.addEventListener("change", () => take(input.files[0]));
+    ["dragenter", "dragover"].forEach((t) => dz.addEventListener(t, (e) => { e.preventDefault(); dz.classList.add("over"); }));
+    ["dragleave", "drop"].forEach((t) => dz.addEventListener(t, (e) => { e.preventDefault(); dz.classList.remove("over"); }));
+    dz.addEventListener("drop", (e) => take(e.dataTransfer.files[0]));
   }
 
   function gmailMenuDialog() {
-    dialog(`<h2>Gmail 已连接</h2><p>当前账号：${esc(S.gmail.email)}</p>
-      <p>断开会撤销授权并删除本机保存的 token，同步记录和草稿 ID 会保留。</p>
-      <div class="dlg-actions">${cancelBtn}<button class="btn btn-danger">断开 Gmail</button></div>`,
-    async () => { S.gmail = await api("POST", "/gmail/disconnect"); renderGmailPill(); toast("已断开 Gmail"); });
+    const g = S.gmail;
+    dialog(`<h2>Gmail</h2>
+      <p>${g.connected ? `当前账号：${esc(g.email)}` : "Google 客户端已设置，Gmail 尚未连接。"}</p>
+      ${g.connected ? `<p>权限：${g.can_read ? "查看邮件 ✓" : "查看邮件 ✗"}，${g.can_draft ? "管理草稿 ✓" : "管理草稿 ✗"}</p>` : ""}
+      <p class="hint">断开会撤销授权并删除本机保存的令牌；同步记录和草稿 ID 会保留。更换客户端会同时断开。</p>
+      <div class="dlg-actions">${cancelBtn}
+        <button class="btn btn-quiet" value="replace">更换 Google 客户端</button>
+        ${g.connected ? `<button class="btn btn-danger" value="disconnect">断开 Gmail</button>` : ""}</div>`,
+    async (fd, submitter) => {
+      if (submitter === "replace") {
+        S.gmail = await api("DELETE", "/gmail/client"); renderGmailPill(); setTimeout(gmailSetupDialog, 0); return;
+      }
+      S.gmail = await api("POST", "/gmail/disconnect"); renderGmailPill(); toast("已断开 Gmail");
+    });
   }
+
 
   // ------------------------------------------------------------ events
   document.addEventListener("click", async (ev) => {
@@ -717,7 +777,7 @@
   async function route() {
     const h = location.hash;
     if (h.startsWith("#gmail=")) { toast("Gmail 已连接"); history.replaceState(null, "", "#/"); await loadGmail(); }
-    if (h.startsWith("#gmail-error=")) { toast(`Gmail 连接失败：${decodeURIComponent(h.slice(13))}`, true); history.replaceState(null, "", "#/"); }
+    if (h.startsWith("#gmail-error=")) { toast(`Gmail 没有连上：${decodeURIComponent(h.slice(13))}`, true); history.replaceState(null, "", "#/"); await loadGmail(); }
     const m = location.hash.match(/^#\/t\/([^/]+)(?:\/(\w+))?/);
     if (m) return openTarget(decodeURIComponent(m[1]), m[2] || undefined);
     if (S.dirty && !confirm("当前草稿还没保存，确定离开吗？")) { history.back(); return; }
