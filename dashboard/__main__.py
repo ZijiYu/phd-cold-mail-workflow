@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import webbrowser
 from pathlib import Path
@@ -33,7 +34,8 @@ def main() -> int:
     if not data.is_dir():
         data.mkdir(parents=True)
         print(f"Created empty data folder: {data.resolve()} (add a campaign from the dashboard)")
-    if args.host not in {"127.0.0.1", "localhost", "::1"}:
+    in_container = os.environ.get("PHD_DASHBOARD_CONTAINER") == "1"
+    if args.host not in {"127.0.0.1", "localhost", "::1"} and not in_container:
         print(f"WARNING: binding to {args.host} exposes the dashboard beyond this computer.", file=sys.stderr)
 
     app = create_app(data, Path(args.state_dir))

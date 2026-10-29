@@ -43,6 +43,8 @@ dashboard/start.sh                    # ./outreach (created if missing)
 dashboard/start.sh path/to/outreach   # your campaign folder
 ```
 
+Or with Docker: `docker compose -f dashboard/compose.yaml up -d --build` (port bound to 127.0.0.1).
+
 The first run creates `dashboard/.venv` and installs dependencies (Python 3.10+). Gmail setup and the API reference are in [dashboard/README.md](dashboard/README.md).
 
 Personal data stays out of git: `.local.md`, `/outreach/` and dashboard tokens are ignored.

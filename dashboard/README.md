@@ -37,6 +37,23 @@ python -m dashboard --data outreach --open
 
 默认地址是 http://127.0.0.1:8765/ ，只监听本机。在终端按 Ctrl+C 停止。
 
+### 用 Docker 运行
+
+不想在本机装 Python 依赖，可以用 Docker（需要先装好并打开 Docker Desktop）。在仓库根目录运行：
+
+```bash
+docker compose -f dashboard/compose.yaml up -d --build   # 构建并在后台启动
+docker compose -f dashboard/compose.yaml logs -f         # 查看日志
+docker compose -f dashboard/compose.yaml down            # 停止
+```
+
+- 地址同样是 http://127.0.0.1:8765/ 。端口只绑定在 `127.0.0.1`，别的设备访问不到。
+- 数据目录 `./outreach` 挂载到容器里，和 `start.sh`、skill 用的是同一份文件。
+- 令牌和 Gmail 授权存在 `~/.phd-outreach-dashboard`，也挂载进容器，所以和本地运行时共用，不用重新连接 Gmail。
+- 容器设置了 `restart: unless-stopped`，Docker Desktop 打开时会自动启动面板。
+- Docker 和 `start.sh` 都用 8765 端口，同一时间只能运行其中一个。
+- 改了代码后重新执行第一条命令（带 `--build`）即可更新。
+
 面板和 skill 是两个独立的文件夹。面板不需要放进 skills 目录，它用的检查脚本是 `cold-email/scripts/` 的副本，放在 `app/checks/`；两份不一致时 `test_checks_in_sync.py` 会报错。
 
 本地状态存放在 `~/.phd-outreach-dashboard/`（可以用 `--state-dir` 修改），不在仓库里：

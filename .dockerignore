@@ -1,0 +1,10 @@
+.git
+**/__pycache__
+**/*.pyc
+dashboard/.venv
+dashboard/tests
+outreach
+outreach-old
+cold-email
+.local.md
+*.zip

@@ -1,0 +1,24 @@
+# Run the outreach dashboard in Docker.
+#
+#   docker compose -f dashboard/compose.yaml up -d --build   # start (from the repo root)
+#   docker compose -f dashboard/compose.yaml logs -f         # logs, incl. the API token path
+#   docker compose -f dashboard/compose.yaml down            # stop
+#
+# Then open http://127.0.0.1:8765/
+name: phd-outreach
+services:
+  dashboard:
+    build:
+      context: ..
+      dockerfile: dashboard/Dockerfile
+    image: phd-outreach-dashboard
+    container_name: phd-outreach-dashboard
+    restart: unless-stopped
+    ports:
+      # Bound to 127.0.0.1 so only this computer can reach it. Do not change to "8765:8765".
+      - "127.0.0.1:8765:8765"
+    volumes:
+      # Your campaign data, the same folder dashboard/start.sh and the skill use.
+      - ../outreach:/data
+      # API token, Google OAuth client JSON and Gmail token, outside the repo.
+      - ${HOME}/.phd-outreach-dashboard:/state
