@@ -139,10 +139,21 @@ cmd_stop() {
   if [ -z "$pid" ]; then
     rm -f "$PIDF"
     if is_up; then
-      die "面板在运行，但不是用 phd 启动的（可能是 Docker 版或 start.sh）。
-Docker 版：docker compose -f \"$DASH/compose.yaml\" down；start.sh：在它的终端里按 Ctrl+C。"
+      # Started some other way (start.sh, python -m dashboard): stop it if it's
+      # our Python process; Docker has to be stopped through compose.
+      local owner cmdline
+      owner="$(port_owner)"
+      cmdline="$( [ -n "$owner" ] && ps -p "$owner" -o command= 2>/dev/null || true)"
+      case "$cmdline" in
+        *dashboard*)
+          pid="$owner" ;;
+        *)
+          die "面板在运行，但不是用 phd 启动的（可能是 Docker 版）。
+Docker 版：docker compose -f \"$DASH/compose.yaml\" down；start.sh：在它的终端里按 Ctrl+C。" ;;
+      esac
+    else
+      say "面板没有在运行。"; return
     fi
-    say "面板没有在运行。"; return
   fi
   kill "$pid" 2>/dev/null || true
   local i
@@ -168,10 +179,13 @@ cmd_logs() {
 }
 
 cmd_update() {
-  local was_running=""
-  [ -n "$(our_pid)" ] && was_running=1
   git -C "$ROOT" pull --ff-only
-  if [ -n "$was_running" ]; then cmd_stop; cmd_start; fi
+  # Restart whatever dashboard is running so the new code is actually served.
+  if is_up; then
+    "$DASH/phd" restart
+  else
+    cmd_start
+  fi
 }
 
 cmd_run() {
