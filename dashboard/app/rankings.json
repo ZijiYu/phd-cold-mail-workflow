@@ -1,0 +1,776 @@
+{
+"source": "CSRankings (csrankings.org), US, top-tier venues",
+"years": "2016-2026",
+"data_version": "c52fc1f 2026-10-28",
+"built_on": "2026-10-29",
+"areas": {
+"cs": "all areas",
+"ai": "AI + Vision + ML + NLP + Web/IR"
+},
+"ranks": {
+"Air Force Inst. of Technology": {
+"cs": 178,
+"ai": null
+},
+"Arizona State University": {
+"cs": 39,
+"ai": 28
+},
+"Auburn University": {
+"cs": 117,
+"ai": 96
+},
+"Augusta University": {
+"cs": 102,
+"ai": 119
+},
+"Baylor University": {
+"cs": 160,
+"ai": 141
+},
+"Binghamton University": {
+"cs": 71,
+"ai": 77
+},
+"Boise State University": {
+"cs": 160,
+"ai": 148
+},
+"Boston College": {
+"cs": 117,
+"ai": 121
+},
+"Boston University": {
+"cs": 36,
+"ai": 31
+},
+"Brandeis University": {
+"cs": 128,
+"ai": 104
+},
+"Brigham Young University": {
+"cs": 111,
+"ai": 112
+},
+"Brown University": {
+"cs": 52,
+"ai": 52
+},
+"CUNY": {
+"cs": 95,
+"ai": 104
+},
+"California Inst. of Technology": {
+"cs": 81,
+"ai": 68
+},
+"Carnegie Mellon University": {
+"cs": 1,
+"ai": 1
+},
+"Case Western Reserve University": {
+"cs": 102,
+"ai": 88
+},
+"Clemson University": {
+"cs": 74,
+"ai": 92
+},
+"Cleveland State University": {
+"cs": 140,
+"ai": 132
+},
+"College of William and Mary": {
+"cs": 68,
+"ai": 71
+},
+"Colorado School of Mines": {
+"cs": 111,
+"ai": 132
+},
+"Colorado State University": {
+"cs": 95,
+"ai": 116
+},
+"Columbia University": {
+"cs": 19,
+"ai": 21
+},
+"Cornell University": {
+"cs": 7,
+"ai": 3
+},
+"Dartmouth College": {
+"cs": 63,
+"ai": 64
+},
+"DePaul University": {
+"cs": 128,
+"ai": 148
+},
+"Drexel University": {
+"cs": 87,
+"ai": 86
+},
+"Duke University": {
+"cs": 30,
+"ai": 36
+},
+"Emory University": {
+"cs": 83,
+"ai": 60
+},
+"Florida Atlantic University": {
+"cs": 140,
+"ai": 141
+},
+"Florida Institute of Technology": {
+"cs": 178,
+"ai": 179
+},
+"Florida International University": {
+"cs": 87,
+"ai": 104
+},
+"Florida State University": {
+"cs": 71,
+"ai": 90
+},
+"George Mason University": {
+"cs": 32,
+"ai": 54
+},
+"George Washington University": {
+"cs": 95,
+"ai": 102
+},
+"Georgetown University": {
+"cs": 87,
+"ai": 104
+},
+"Georgia Institute of Technology": {
+"cs": 4,
+"ai": 7
+},
+"Georgia State University": {
+"cs": 128,
+"ai": 121
+},
+"Harvard University": {
+"cs": 39,
+"ai": 38
+},
+"IUPUI": {
+"cs": 140,
+"ai": 155
+},
+"Illinois Institute of Technology": {
+"cs": 102,
+"ai": 113
+},
+"Indiana University": {
+"cs": 55,
+"ai": 61
+},
+"Iowa State University": {
+"cs": 81,
+"ai": 80
+},
+"Johns Hopkins University": {
+"cs": 41,
+"ai": 14
+},
+"Kansas State University": {
+"cs": 160,
+"ai": 155
+},
+"Kent State University": {
+"cs": 117,
+"ai": 137
+},
+"Lehigh University": {
+"cs": 95,
+"ai": 84
+},
+"Louisiana State University": {
+"cs": 111,
+"ai": 124
+},
+"Massachusetts Inst. of Technology": {
+"cs": 5,
+"ai": 8
+},
+"Michigan State University": {
+"cs": 65,
+"ai": 44
+},
+"Michigan Technological University": {
+"cs": 128,
+"ai": 161
+},
+"Mississippi State University": {
+"cs": 160,
+"ai": 169
+},
+"Missouri S&T": {
+"cs": 140,
+"ai": 137
+},
+"Montana State University": {
+"cs": 160,
+"ai": 169
+},
+"NJIT": {
+"cs": 63,
+"ai": 71
+},
+"Naval Postgraduate School": {
+"cs": 160,
+"ai": null
+},
+"New Mexico State University": {
+"cs": 140,
+"ai": 137
+},
+"New Mexico Tech": {
+"cs": 178,
+"ai": 179
+},
+"New York Tech": {
+"cs": 140,
+"ai": 141
+},
+"New York University": {
+"cs": 14,
+"ai": 13
+},
+"North Carolina State University": {
+"cs": 41,
+"ai": 65
+},
+"Northeastern University": {
+"cs": 11,
+"ai": 16
+},
+"Northern Arizona University": {
+"cs": 140,
+"ai": 161
+},
+"Northwestern University": {
+"cs": 26,
+"ai": 39
+},
+"Nova Southeastern University": {
+"cs": 160,
+"ai": 161
+},
+"OHSU": {
+"cs": 178,
+"ai": 158
+},
+"Oakland University": {
+"cs": 128,
+"ai": 117
+},
+"Ohio State University": {
+"cs": 47,
+"ai": 39
+},
+"Ohio University": {
+"cs": 160,
+"ai": null
+},
+"Oklahoma State University": {
+"cs": 178,
+"ai": 169
+},
+"Old Dominion University": {
+"cs": 140,
+"ai": 148
+},
+"Oregon State University": {
+"cs": 54,
+"ai": 45
+},
+"Pennsylvania State University": {
+"cs": 32,
+"ai": 24
+},
+"Portland State University": {
+"cs": 117,
+"ai": 126
+},
+"Princeton University": {
+"cs": 17,
+"ai": 29
+},
+"Purdue University": {
+"cs": 13,
+"ai": 23
+},
+"Rensselaer Polytechnic Institute": {
+"cs": 95,
+"ai": 95
+},
+"Rice University": {
+"cs": 45,
+"ai": 48
+},
+"Rochester Inst. of Technology": {
+"cs": 57,
+"ai": 50
+},
+"Rutgers University": {
+"cs": 30,
+"ai": 30
+},
+"Southern Methodist University": {
+"cs": 140,
+"ai": 161
+},
+"Stanford University": {
+"cs": 12,
+"ai": 6
+},
+"Stevens Institute of Technology": {
+"cs": 68,
+"ai": 66
+},
+"Stony Brook University": {
+"cs": 24,
+"ai": 32
+},
+"Syracuse University": {
+"cs": 111,
+"ai": 110
+},
+"TTI Chicago": {
+"cs": 87,
+"ai": 69
+},
+"Temple University": {
+"cs": 87,
+"ai": 76
+},
+"Texas A&M University": {
+"cs": 32,
+"ai": 24
+},
+"Texas State University": {
+"cs": 102,
+"ai": 119
+},
+"Texas Tech University": {
+"cs": 117,
+"ai": 130
+},
+"The University of Alabama": {
+"cs": 140,
+"ai": 141
+},
+"Towson University": {
+"cs": 160,
+"ai": 169
+},
+"Tufts University": {
+"cs": 71,
+"ai": 93
+},
+"Tulane University": {
+"cs": 85,
+"ai": 86
+},
+"UCCS": {
+"cs": 140,
+"ai": 132
+},
+"UNC - Charlotte": {
+"cs": 74,
+"ai": 74
+},
+"UNC - Greensboro": {
+"cs": 178,
+"ai": null
+},
+"Univ. of Arkansas - Little Rock": {
+"cs": 178,
+"ai": null
+},
+"Univ. of California - Berkeley": {
+"cs": 7,
+"ai": 10
+},
+"Univ. of California - Davis": {
+"cs": 50,
+"ai": 46
+},
+"Univ. of California - Irvine": {
+"cs": 22,
+"ai": 34
+},
+"Univ. of California - Los Angeles": {
+"cs": 20,
+"ai": 11
+},
+"Univ. of California - Merced": {
+"cs": 74,
+"ai": 63
+},
+"Univ. of California - Riverside": {
+"cs": 27,
+"ai": 58
+},
+"Univ. of California - San Diego": {
+"cs": 3,
+"ai": 4
+},
+"Univ. of California - Santa Barbara": {
+"cs": 35,
+"ai": 33
+},
+"Univ. of California - Santa Cruz": {
+"cs": 37,
+"ai": 42
+},
+"Univ. of Illinois at Urbana-Champaign": {
+"cs": 2,
+"ai": 2
+},
+"Univ. of Louisiana - Lafayette": {
+"cs": 128,
+"ai": 155
+},
+"Univ. of Maryland - Baltimore County": {
+"cs": 87,
+"ai": 80
+},
+"Univ. of Maryland - College Park": {
+"cs": 9,
+"ai": 5
+},
+"Univ. of Massachusetts Amherst": {
+"cs": 23,
+"ai": 12
+},
+"Univ. of Missouri - Kansas City": {
+"cs": 160,
+"ai": 137
+},
+"Univ. of Wisconsin - Milwaukee": {
+"cs": 160,
+"ai": 169
+},
+"University at Albany - SUNY": {
+"cs": 128,
+"ai": 109
+},
+"University at Buffalo": {
+"cs": 47,
+"ai": 41
+},
+"University of Alabama - Birmingham": {
+"cs": 178,
+"ai": 169
+},
+"University of Alabama - Huntsville": {
+"cs": 178,
+"ai": null
+},
+"University of Arizona": {
+"cs": 83,
+"ai": 80
+},
+"University of Arkansas": {
+"cs": 128,
+"ai": 113
+},
+"University of Central Florida": {
+"cs": 53,
+"ai": 34
+},
+"University of Chicago": {
+"cs": 24,
+"ai": 47
+},
+"University of Cincinnati": {
+"cs": 117,
+"ai": 113
+},
+"University of Colorado - Denver": {
+"cs": 140,
+"ai": 169
+},
+"University of Colorado Boulder": {
+"cs": 47,
+"ai": 57
+},
+"University of Connecticut": {
+"cs": 65,
+"ai": 73
+},
+"University of Delaware": {
+"cs": 74,
+"ai": 102
+},
+"University of Denver": {
+"cs": 160,
+"ai": null
+},
+"University of Florida": {
+"cs": 59,
+"ai": 78
+},
+"University of Georgia": {
+"cs": 74,
+"ai": 93
+},
+"University of Hawaii at Manoa": {
+"cs": 140,
+"ai": 148
+},
+"University of Houston": {
+"cs": 102,
+"ai": 100
+},
+"University of Idaho": {
+"cs": 178,
+"ai": 169
+},
+"University of Illinois at Chicago": {
+"cs": 41,
+"ai": 19
+},
+"University of Iowa": {
+"cs": 102,
+"ai": 110
+},
+"University of Kansas": {
+"cs": 117,
+"ai": 141
+},
+"University of Kentucky": {
+"cs": 117,
+"ai": 98
+},
+"University of Louisville": {
+"cs": 160,
+"ai": 161
+},
+"University of Massachusetts Boston": {
+"cs": 140,
+"ai": 132
+},
+"University of Massachusetts Lowell": {
+"cs": 95,
+"ai": 88
+},
+"University of Memphis": {
+"cs": 117,
+"ai": 126
+},
+"University of Miami": {
+"cs": 178,
+"ai": 179
+},
+"University of Michigan": {
+"cs": 10,
+"ai": 9
+},
+"University of Michigan-Dearborn": {
+"cs": 140,
+"ai": 169
+},
+"University of Minnesota": {
+"cs": 50,
+"ai": 49
+},
+"University of Mississippi": {
+"cs": 160,
+"ai": 148
+},
+"University of Missouri": {
+"cs": 128,
+"ai": 117
+},
+"University of Nebraska": {
+"cs": 102,
+"ai": 126
+},
+"University of Nebraska - Omaha": {
+"cs": 140,
+"ai": 148
+},
+"University of Nevada": {
+"cs": 128,
+"ai": 126
+},
+"University of Nevada Las Vegas": {
+"cs": 160,
+"ai": 179
+},
+"University of New Hampshire": {
+"cs": 111,
+"ai": 100
+},
+"University of New Mexico": {
+"cs": 128,
+"ai": 158
+},
+"University of New Orleans": {
+"cs": 178,
+"ai": 169
+},
+"University of North Carolina": {
+"cs": 45,
+"ai": 22
+},
+"University of North Texas": {
+"cs": 95,
+"ai": 90
+},
+"University of Notre Dame": {
+"cs": 62,
+"ai": 52
+},
+"University of Oklahoma": {
+"cs": 117,
+"ai": 130
+},
+"University of Oregon": {
+"cs": 102,
+"ai": 75
+},
+"University of Pennsylvania": {
+"cs": 18,
+"ai": 19
+},
+"University of Pittsburgh": {
+"cs": 68,
+"ai": 70
+},
+"University of Rhode Island": {
+"cs": 160,
+"ai": 161
+},
+"University of Rochester": {
+"cs": 59,
+"ai": 51
+},
+"University of South Carolina": {
+"cs": 111,
+"ai": 98
+},
+"University of South Florida": {
+"cs": 74,
+"ai": 84
+},
+"University of Southern California": {
+"cs": 21,
+"ai": 17
+},
+"University of Southern Mississippi": {
+"cs": 160,
+"ai": 161
+},
+"University of Tennessee": {
+"cs": 87,
+"ai": 108
+},
+"University of Texas - El Paso": {
+"cs": 140,
+"ai": 132
+},
+"University of Texas at Arlington": {
+"cs": 59,
+"ai": 61
+},
+"University of Texas at Austin": {
+"cs": 16,
+"ai": 18
+},
+"University of Texas at Dallas": {
+"cs": 55,
+"ai": 37
+},
+"University of Texas at San Antonio": {
+"cs": 102,
+"ai": 124
+},
+"University of Tulsa": {
+"cs": 160,
+"ai": 161
+},
+"University of Utah": {
+"cs": 29,
+"ai": 59
+},
+"University of Vermont": {
+"cs": 140,
+"ai": 158
+},
+"University of Virginia": {
+"cs": 27,
+"ai": 24
+},
+"University of Washington": {
+"cs": 6,
+"ai": 15
+},
+"University of Wisconsin - Madison": {
+"cs": 15,
+"ai": 27
+},
+"University of Wyoming": {
+"cs": 178,
+"ai": null
+},
+"Utah State University": {
+"cs": 117,
+"ai": 141
+},
+"Vanderbilt University": {
+"cs": 65,
+"ai": 67
+},
+"Virginia Commonwealth University": {
+"cs": 128,
+"ai": 148
+},
+"Virginia Tech": {
+"cs": 37,
+"ai": 42
+},
+"Washington State University": {
+"cs": 85,
+"ai": 96
+},
+"Washington University in St. Louis": {
+"cs": 58,
+"ai": 56
+},
+"Wayne State University": {
+"cs": 87,
+"ai": 79
+},
+"West Virginia University": {
+"cs": 140,
+"ai": 121
+},
+"Western Michigan University": {
+"cs": 178,
+"ai": null
+},
+"Wichita State University": {
+"cs": 140,
+"ai": 141
+},
+"Worcester Polytechnic Institute": {
+"cs": 74,
+"ai": 83
+},
+"Yale University": {
+"cs": 41,
+"ai": 55
+}
+}
+}

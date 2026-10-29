@@ -25,6 +25,7 @@ import threading
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+from . import rankings
 from .checks import check_draft, check_tracker
 
 SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,120}$")
@@ -284,7 +285,8 @@ class Store:
             progs = [programs.get(p, {"program_id": p}) for p in sorted(s["programs"])]
             deadlines = sorted(p.get("deadline", "") for p in progs if p.get("deadline"))
             tiers = sorted({p.get("tier", "") for p in progs if p.get("tier")})
-            school_list.append({**s, "programs": [p.get("program_id") for p in progs], "deadline": deadlines[0] if deadlines else "", "tiers": tiers})
+            school_list.append({**s, "programs": [p.get("program_id") for p in progs], "deadline": deadlines[0] if deadlines else "",
+                                "tiers": tiers, "rank": rankings.lookup(s["institution"])})
         # earliest deadline first; without deadlines, schools with replies come first
         school_list.sort(key=lambda s: (s["deadline"] or "9999", -s["replied"], s["institution"]))
 
@@ -296,6 +298,7 @@ class Store:
             "replied": len(replied),
             "reply_rate": round(len(replied) / len(sent_like), 3) if sent_like else None,
             "schools": school_list,
+            "rankings": rankings.meta(),
             "programs": list(programs.values()),
         })
         return out

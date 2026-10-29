@@ -148,9 +148,13 @@
       if (school.tiers?.length) meta.push(school.tiers.map(tierLabel).join("/"));
       if (school.deadline) meta.push(`<span class="${left !== null && left <= 21 ? "soon" : ""}">截止 ${md(school.deadline)}${left !== null && left >= 0 ? `，还剩 ${left} 天` : left < 0 ? "，已过" : ""}</span>`);
       const profs = groups.get(inst).sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status));
-      return `<section class="school">
-        <h2 class="school-name">${esc(inst)}</h2>
-        ${meta.length ? `<p class="school-meta">${meta.join("　")}</p>` : ""}
+      meta.push(`${profs.length} 位`);
+      return `<section class="school ${rankClass(school.rank)}">
+        <div class="school-head">
+          <h2 class="school-name">${esc(inst)}</h2>
+          ${rankBadge(school.rank)}
+        </div>
+        <p class="school-meta">${meta.join("　")}</p>
       </section>
       ${profs.map((t) => {
         const a = actionFor(t);
@@ -166,6 +170,17 @@
   }
 
   const tierLabel = (t) => ({ reach: "冲", match: "稳", safety: "保" }[t] || t);
+
+  // CSRankings (US). Bands: top 20, 21-50, 51+.
+  const rankClass = (r) => !r?.cs ? "rank-none" : r.cs <= 20 ? "rank-top" : r.cs <= 50 ? "rank-mid" : "rank-rest";
+  function rankTitle(r) {
+    const m = S.summary?.rankings || {};
+    return `CSRankings 美国排名（${m.years || "近十年"}）：综合 #${r.cs ?? "—"}，AI 方向 #${r.ai ?? "—"}。CSRankings 名称：${r.name}`;
+  }
+  function rankBadge(r) {
+    if (!r) return `<span class="rank-badge is-empty" title="CSRankings 里没有找到这所学校">未排名</span>`;
+    return `<span class="rank-badge" title="${attr(rankTitle(r))}"><span class="rk-cs">#${r.cs ?? "—"}</span><span class="rk-ai">AI #${r.ai ?? "—"}</span></span>`;
+  }
 
   // ------------------------------------------------------------ gmail pill
   function renderGmailPill() {
@@ -238,10 +253,11 @@
         <section>
           <h2 class="section-title">学校</h2>
           <table class="schools">
-            <thead><tr><th>学校</th><th>截止</th><th>已联系</th><th>回音</th></tr></thead>
+            <thead><tr><th title="CSRankings 美国：综合 / AI 方向">排名</th><th>学校</th><th>截止</th><th>已联系</th><th>回音</th></tr></thead>
             <tbody>${sm.schools.map((s) => {
               const left = daysUntil(s.deadline);
-              return `<tr>
+              return `<tr class="${rankClass(s.rank)}">
+                <td class="num rank-cell">${rankBadge(s.rank)}</td>
                 <td><span class="inst">${esc(s.institution)}</span><br><span class="tier">${esc((s.tiers || []).map(tierLabel).join("/") || "未分档")}${s.programs.length ? `，${esc(s.programs.join("，"))}` : ""}</span></td>
                 <td class="num">${s.deadline ? `${md(s.deadline)}<br><span class="tier">${left >= 0 ? `${left} 天` : "已过"}</span>` : "未填"}</td>
                 <td class="num">${s.contacted}/${s.total}<div class="bar"><span style="width:${s.total ? (100 * s.contacted / s.total) : 0}%"></span></div></td>
@@ -249,6 +265,7 @@
               </tr>`;
             }).join("")}</tbody>
           </table>
+          ${sm.rankings?.years ? `<p class="hint">排名来自 CSRankings 美国榜（${esc(sm.rankings.years)}，数据 ${esc(sm.rankings.data_version || "")}）：前一个数字是综合排名，后一个是 AI 方向（AI、视觉、ML、NLP、信息检索）。</p>` : ""}
         </section>
       </div>`;
   }
@@ -297,7 +314,8 @@
       <div class="detail-head">
         <div class="detail-title">
           <h1>${esc(t.professor)}</h1>
-          <p>${esc(t.institution)}${t.department ? `，${esc(t.department)}` : ""}${t.program_id ? `（${esc(t.program_id)}）` : ""}</p>
+          <p class="detail-school">${esc(t.institution)}${t.department ? `，${esc(t.department)}` : ""}${t.program_id ? `（${esc(t.program_id)}）` : ""}
+            ${rankBadge((S.summary?.schools || []).find((s) => s.institution === t.institution)?.rank)}</p>
           <div class="contact">
             ${t.email ? `<a href="mailto:${attr(t.email)}">${esc(t.email)}</a>` : `<span class="hint">邮箱未核实</span>`}
             ${t.homepage_url ? `<a href="${attr(safeUrl(t.homepage_url))}" target="_blank" rel="noopener noreferrer">主页</a>` : ""}
