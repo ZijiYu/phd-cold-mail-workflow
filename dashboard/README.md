@@ -21,14 +21,40 @@ outreach/
 
 ## 运行
 
-在仓库根目录运行：
+### 快速启动：`phd` 命令
+
+第一次在仓库根目录运行一次：
+
+```bash
+dashboard/phd install    # 把 phd 命令加进 ~/.zshrc（重复运行只会更新，不会重复添加）
+```
+
+新开一个终端窗口后，在任何目录都可以用：
+
+| 命令 | 作用 |
+|---|---|
+| `phd` | 后台启动面板并打开浏览器；已经在运行就只打开浏览器 |
+| `phd stop` | 停止 |
+| `phd restart` | 重启 |
+| `phd status` | 是否在运行 |
+| `phd logs` | 查看日志（Ctrl+C 退出查看，面板继续运行） |
+| `phd update` | `git pull` 拉取最新代码，并在运行中时自动重启 |
+| `phd run` | 在前台运行（Ctrl+C 停止） |
+
+- 后台运行，关掉终端窗口面板也不会停。
+- 第一次启动会在 `dashboard/.venv` 建虚拟环境并安装依赖，大约十几秒；之后启动约 1 秒。依赖只在 `requirements.txt` 变化时才重新安装。
+- 需要 Python 3.10 以上。脚本会自动找 `python3.13`…`python3.10`；macOS 自带的 `python3` 通常是 3.9，不够的话 `brew install python@3.12`，或用 `PYTHON=/path/to/python3 phd` 指定。
+- 可选环境变量：`PHD_DATA`（数据文件夹，默认仓库里的 `outreach/`）、`PHD_PORT`（默认 8765）、`PHD_NO_BROWSER=1`（不自动打开浏览器）。
+- 日志在 `~/.phd-outreach-dashboard/dashboard.log`。
+
+### 前台运行
 
 ```bash
 dashboard/start.sh                    # 读取 ./outreach（不存在会自动创建）
 dashboard/start.sh path/to/outreach   # 指定自己的申请季文件夹
 ```
 
-第一次运行会在 `dashboard/.venv` 里建虚拟环境并安装依赖（需要 Python 3.10+）。也可以手动运行：
+`start.sh` 等同于 `phd run`。也可以手动运行：
 
 ```bash
 pip install -r dashboard/requirements.txt

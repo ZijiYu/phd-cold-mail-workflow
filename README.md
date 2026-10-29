@@ -39,8 +39,11 @@ The skill folder contains:
 ## Run the dashboard
 
 ```bash
-dashboard/start.sh                    # ./outreach (created if missing)
-dashboard/start.sh path/to/outreach   # your campaign folder
+dashboard/phd install   # once: adds a `phd` command to your shell
+phd                     # start in the background and open the browser
+phd stop                # stop (also: phd status | logs | restart | update)
+
+dashboard/start.sh      # or run in the foreground, reading ./outreach
 ```
 
 Or with Docker: `docker compose -f dashboard/compose.yaml up -d --build` (port bound to 127.0.0.1).
