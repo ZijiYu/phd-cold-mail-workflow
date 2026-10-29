@@ -1,0 +1,235 @@
+#!/usr/bin/env bash
+# phd — quick launcher for the outreach dashboard (macOS / Linux).
+#
+#   phd             start in the background if needed, then open the browser
+#   phd stop        stop the background dashboard
+#   phd restart     stop, then start
+#   phd status      show whether it is running
+#   phd logs        follow the log (Ctrl+C to leave; the dashboard keeps running)
+#   phd update      git pull, then restart
+#   phd run         run in the foreground (Ctrl+C stops it)
+#   phd install     add the `phd` command to your shell, once
+#
+# Settings (optional environment variables):
+#   PHD_DATA       campaign folder        (default: <repo>/outreach)
+#   PHD_PORT       port                   (default: 8765)
+#   PHD_STATE_DIR  token / Gmail / logs   (default: ~/.phd-outreach-dashboard)
+#   PYTHON         Python 3.10+ to use    (default: newest python3.x found)
+#   PHD_NO_BROWSER=1  don't open the browser
+set -euo pipefail
+
+# Resolve the real location of this script, following symlinks
+# (older macOS has no `readlink -f`).
+src="${BASH_SOURCE[0]}"
+while [ -L "$src" ]; do
+  dir="$(cd -P "$(dirname "$src")" && pwd)"
+  src="$(readlink "$src")"
+  case "$src" in /*) ;; *) src="$dir/$src" ;; esac
+done
+DASH="$(cd -P "$(dirname "$src")" && pwd)"
+ROOT="$(dirname "$DASH")"
+
+PORT="${PHD_PORT:-8765}"
+URL="http://127.0.0.1:$PORT/"
+STATE="${PHD_STATE_DIR:-$HOME/.phd-outreach-dashboard}"
+DATA="${PHD_DATA:-$ROOT/outreach}"
+VENV="$DASH/.venv"
+PIDF="$STATE/dashboard.pid"
+LOG="$STATE/dashboard.log"
+
+say()  { printf '%s\n' "$*"; }
+die()  { printf '%s\n' "$*" >&2; exit 1; }
+
+# ------------------------------------------------------------------ checks
+is_up() {
+  # Our dashboard answers its OpenAPI document without a token.
+  curl -fsS --max-time 2 "${URL}api/openapi.json" 2>/dev/null | grep -q 'PhD Outreach Dashboard API'
+}
+
+port_owner() {
+  command -v lsof >/dev/null 2>&1 || return 0
+  { lsof -nP -iTCP:"$PORT" -sTCP:LISTEN -t 2>/dev/null || true; } | head -n 1
+}
+
+our_pid() {
+  [ -f "$PIDF" ] || return 0
+  local pid; pid="$(cat "$PIDF" 2>/dev/null || true)"
+  if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then echo "$pid"; fi
+}
+
+open_url() {
+  if [ -z "${PHD_NO_BROWSER:-}" ]; then
+    case "$(uname)" in
+      Darwin) open "$URL" || true ;;
+      *) if command -v xdg-open >/dev/null 2>&1; then xdg-open "$URL" >/dev/null 2>&1 || true; fi ;;
+    esac
+  fi
+  say "面板：$URL"
+}
+
+# ------------------------------------------------------------------ setup
+find_python() {
+  local c
+  for c in ${PYTHON:-} python3.13 python3.12 python3.11 python3.10 python3; do
+    [ -n "$c" ] || continue
+    command -v "$c" >/dev/null 2>&1 || continue
+    if "$c" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' 2>/dev/null; then
+      command -v "$c"; return 0
+    fi
+  done
+  return 1
+}
+
+ensure_venv() {
+  if [ ! -x "$VENV/bin/python" ]; then
+    local py
+    py="$(find_python)" || die "需要 Python 3.10 以上（macOS 自带的 python3 通常是 3.9）。
+可以用 Homebrew 安装：brew install python@3.12，或指定：PYTHON=/path/to/python3.12 phd"
+    say "首次运行：在 dashboard/.venv 建立虚拟环境（$("$py" --version 2>&1)）…"
+    "$py" -m venv "$VENV"
+  fi
+  # Reinstall only when requirements.txt changes.
+  local want have=""
+  want="$(cksum < "$DASH/requirements.txt")"
+  [ -f "$VENV/.requirements.cksum" ] && have="$(cat "$VENV/.requirements.cksum")"
+  if [ "$want" != "$have" ]; then
+    say "安装依赖…"
+    "$VENV/bin/python" -m pip install --quiet --upgrade pip
+    "$VENV/bin/python" -m pip install --quiet -r "$DASH/requirements.txt"
+    printf '%s' "$want" > "$VENV/.requirements.cksum"
+  fi
+}
+
+check_port_free() {
+  local owner; owner="$(port_owner)"
+  [ -z "$owner" ] && return 0
+  local name; name="$(ps -p "$owner" -o comm= 2>/dev/null || echo '?')"
+  die "端口 $PORT 被其他程序占用（pid ${owner}，${name}）。
+如果是 Docker 版面板，先运行：docker compose -f \"$DASH/compose.yaml\" down
+或者换个端口：PHD_PORT=8766 phd"
+}
+
+# ------------------------------------------------------------------ commands
+cmd_start() {
+  if is_up; then say "面板已在运行。"; open_url; return; fi
+  check_port_free
+  ensure_venv
+  mkdir -p "$STATE" "$DATA"
+  say "启动中…（数据：${DATA}）"
+  (
+    cd "$ROOT"
+    nohup "$VENV/bin/python" -m dashboard --data "$DATA" --port "$PORT" --state-dir "$STATE" \
+      >>"$LOG" 2>&1 &
+    echo $! > "$PIDF"
+  )
+  local i
+  for i in $(seq 1 40); do
+    if is_up; then open_url; say "停止：phd stop    日志：phd logs"; return; fi
+    if [ -z "$(our_pid)" ]; then break; fi
+    sleep 0.5
+  done
+  say "启动失败，最近的日志："
+  tail -n 20 "$LOG" >&2 || true
+  rm -f "$PIDF"
+  exit 1
+}
+
+cmd_stop() {
+  local pid; pid="$(our_pid)"
+  if [ -z "$pid" ]; then
+    rm -f "$PIDF"
+    if is_up; then
+      # Started some other way (start.sh, python -m dashboard): stop it if it's
+      # our Python process; Docker has to be stopped through compose.
+      local owner cmdline
+      owner="$(port_owner)"
+      cmdline="$( [ -n "$owner" ] && ps -p "$owner" -o command= 2>/dev/null || true)"
+      case "$cmdline" in
+        *dashboard*)
+          pid="$owner" ;;
+        *)
+          die "面板在运行，但不是用 phd 启动的（可能是 Docker 版）。
+Docker 版：docker compose -f \"$DASH/compose.yaml\" down；start.sh：在它的终端里按 Ctrl+C。" ;;
+      esac
+    else
+      say "面板没有在运行。"; return
+    fi
+  fi
+  kill "$pid" 2>/dev/null || true
+  local i
+  for i in $(seq 1 20); do kill -0 "$pid" 2>/dev/null || break; sleep 0.25; done
+  kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null || true
+  rm -f "$PIDF"
+  say "已停止。"
+}
+
+cmd_status() {
+  if is_up; then
+    local pid; pid="$(our_pid)"
+    say "运行中：$URL${pid:+（pid ${pid}）}"
+    say "数据：$DATA"
+  else
+    say "未运行。启动：phd"
+  fi
+}
+
+cmd_logs() {
+  [ -f "$LOG" ] || die "还没有日志：$LOG"
+  tail -n 50 -f "$LOG"
+}
+
+cmd_update() {
+  git -C "$ROOT" pull --ff-only
+  # Restart whatever dashboard is running so the new code is actually served.
+  if is_up; then
+    "$DASH/phd" restart
+  else
+    cmd_start
+  fi
+}
+
+cmd_run() {
+  if is_up; then say "面板已在运行。"; open_url; return; fi
+  check_port_free
+  ensure_venv
+  mkdir -p "$STATE" "$DATA"
+  say "数据：${DATA}（Ctrl+C 停止）"
+  cd "$ROOT"
+  exec "$VENV/bin/python" -m dashboard --data "$DATA" --port "$PORT" --state-dir "$STATE" --open ${@+"$@"}
+}
+
+cmd_install() {
+  local rc
+  case "$(basename "${SHELL:-}")" in
+    zsh)  rc="$HOME/.zshrc" ;;
+    bash) if [ "$(uname)" = Darwin ]; then rc="$HOME/.bash_profile"; else rc="$HOME/.bashrc"; fi ;;
+    *)    rc="$HOME/.profile" ;;
+  esac
+  local marker="# phd-outreach-dashboard"
+  local line="alias phd='$DASH/phd'  $marker"
+  if [ -f "$rc" ] && grep -qF "$marker" "$rc"; then
+    # Update the path in place if the repo moved.
+    local tmp; tmp="$(mktemp)"
+    grep -vF "$marker" "$rc" > "$tmp"; printf '%s\n' "$line" >> "$tmp"; cat "$tmp" > "$rc"; rm -f "$tmp"
+    say "已更新 $rc 里的 phd 命令。"
+  else
+    printf '\n%s\n' "$line" >> "$rc"
+    say "已把 phd 命令加入 ${rc}。"
+  fi
+  say "新开一个终端窗口（或运行 source ${rc}）后，直接输入 phd 即可。"
+}
+
+usage() { sed -n '2,17p' "$DASH/phd" | sed 's/^# \{0,1\}//'; }
+
+case "${1:-start}" in
+  start)   cmd_start ;;
+  stop)    cmd_stop ;;
+  restart) cmd_stop; cmd_start ;;
+  status)  cmd_status ;;
+  logs|log) cmd_logs ;;
+  update)  cmd_update ;;
+  run)     shift; cmd_run ${@+"$@"} ;;
+  install) cmd_install ;;
+  -h|--help|help) usage ;;
+  *) usage; exit 2 ;;
+esac

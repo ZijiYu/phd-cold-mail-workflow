@@ -1,0 +1,7 @@
+program_id,institution,department,degree,admission_model,deadline,deadline_tz,can_name_faculty,cross_dept_advising,tier,max_contacts,source_urls,checked_on
+lakeview-cs-phd,Lakeview University,Computer Science,PhD,committee,2026-12-15,America/New_York,yes,yes,reach,2,https://example.edu/lakeview/cs/phd,2026-10-02
+northfield-ece-phd,Northfield Institute of Technology,Electrical and Computer Engineering,PhD,advisor_driven,2026-12-01,America/Chicago,yes,no,match,2,https://example.edu/northfield/ece,2026-10-04
+harbor-cs-phd,Harbor State University,Computer Science,PhD,hybrid,2026-12-10,America/Los_Angeles,yes,yes,match,3,https://example.edu/harbor/cs,2026-10-05
+pinecrest-ml-phd,Pinecrest University,Machine Learning,PhD,committee,2026-12-05,America/New_York,yes,yes,reach,2,https://example.edu/pinecrest/ml,2026-10-06
+riverside-cs-phd,Riverside College of Engineering,Computer Science,PhD,advisor_driven,2027-01-05,America/Denver,no,yes,safety,2,https://example.edu/riverside/cs,2026-10-07
+summit-ds-phd,Summit University,Data Science,PhD,hybrid,2026-12-15,America/New_York,yes,yes,match,2,https://example.edu/summit/ds,2026-10-08

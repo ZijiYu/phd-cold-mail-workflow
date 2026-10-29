@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="api-token" content="__API_TOKEN__">
+  <title>套磁工作台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">跳到主内容</a>
+  <div class="shell">
+    <aside class="sidebar" id="sidebar" aria-label="学校与教授">
+      <div class="side-head">
+        <label class="visually-hidden" for="campaign">申请季</label>
+        <select id="campaign" class="campaign-select"></select>
+        <button class="icon-btn" id="new-campaign" aria-label="新建申请季" title="新建申请季">+</button>
+        <button class="icon-btn only-mobile" id="close-side" aria-label="关闭侧栏">✕</button>
+      </div>
+      <div class="side-tools">
+        <label class="visually-hidden" for="search">搜索教授或学校</label>
+        <input id="search" type="search" placeholder="搜索教授、学校、邮箱" autocomplete="off">
+        <div class="filter-row" role="group" aria-label="按状态筛选">
+          <button class="chip-filter is-on" data-filter="all">全部</button>
+          <button class="chip-filter" data-filter="action">待处理</button>
+          <button class="chip-filter" data-filter="active">进行中</button>
+          <button class="chip-filter" data-filter="done">已结束</button>
+        </div>
+      </div>
+      <nav class="tree" id="tree"></nav>
+      <div class="side-foot">
+        <button class="btn btn-quiet" id="add-target">添加教授</button>
+      </div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <button class="icon-btn only-mobile" id="open-side" aria-label="打开侧栏">☰</button>
+        <a href="#/" class="crumb" id="crumb">总览</a>
+        <div class="topbar-right">
+          <div id="gmail-pill"></div>
+          <button class="btn" id="sync-btn" disabled>同步 Gmail</button>
+          <a class="btn btn-quiet api-link" href="/api/docs" target="_blank" rel="noopener">API 文档</a>
+          <button class="btn btn-quiet chat-toggle" id="chat-toggle" aria-controls="chat" aria-expanded="false"><span class="spark" aria-hidden="true">✳</span>Claude</button>
+        </div>
+      </header>
+      <main id="main" tabindex="-1"></main>
+    </div>
+
+    <aside class="chat" id="chat" aria-label="Claude Code 对话" hidden>
+      <div class="chat-head">
+        <div class="chat-titles">
+          <span class="chat-title"><span class="spark" aria-hidden="true">✳</span>Claude Code</span>
+          <span class="chat-ctx" id="chat-ctx"></span>
+        </div>
+        <button class="btn btn-quiet btn-sm" id="chat-new" title="清空记录，开始新的 Claude Code 会话">新对话</button>
+        <button class="icon-btn" id="chat-close" aria-label="关闭对话">✕</button>
+      </div>
+      <div class="chat-log" id="chat-log" aria-live="polite"></div>
+      <form class="chat-form" id="chat-form">
+        <label class="visually-hidden" for="chat-input">给 Claude 的消息</label>
+        <textarea id="chat-input" rows="3" placeholder="让 Claude 查资料、改表格、写草稿…（Enter 发送，Shift+Enter 换行）"></textarea>
+        <div class="chat-actions">
+          <span class="chat-status" id="chat-status"></span>
+          <button type="button" class="btn btn-quiet" id="chat-stop" hidden>停止</button>
+          <button type="submit" class="btn btn-accent" id="chat-send">发送</button>
+        </div>
+      </form>
+    </aside>
+  </div>
+
+  <dialog id="dialog"></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

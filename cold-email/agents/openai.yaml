@@ -1,0 +1,7 @@
+interface:
+  display_name: "Academic Outreach / 套磁"
+  short_description: "Shortlist programs and advisors, then research, draft, check, and track professor outreach"
+  default_prompt: "Use $cold-email to shortlist programs and advisors that fit my profile, or to research my target professor and draft a personalized outreach email, flagging any facts I need to verify."
+
+policy:
+  allow_implicit_invocation: true

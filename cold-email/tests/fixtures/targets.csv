@@ -1,0 +1,7 @@
+target_id,program_id,professor,institution,department,email,checked_on,draft_path,status,sent_at,follow_up_count,last_contact_at,follow_up_due,close_reason,next_action
+lakeview--whitfield,lakeview-cs-phd,Dana Whitfield,Lakeview University,CS,dw@lakeview.edu,2026-10-01,drafts/a.md,sent,2026-10-06,0,2026-10-06,2026-10-20,,
+lakeview--okafor,lakeview-cs-phd,Chidi Okafor,Lakeview University,CS,co@lakeview.edu,2026-10-01,drafts/b.md,sent,2026-10-07,0,2026-10-07,2026-10-21,,
+lakeview--park,lakeview-cs-phd,Min Park,Lakeview University,CS,mp@lakeview.edu,2026-10-01,drafts/c.md,approved,,,,,,
+hill--ross,hill-ece-phd,Ana Ross,Hill Tech,ECE,,2026-08-01,,drafted,,,,,,
+hill--lee,hill-ece-phd,Sam Lee,Hill Tech,ECE,sl@hill.edu,2026-10-20,,closed,2026-10-10,1,2026-10-24,,,
+hill--kim,nope,Jo Kim,Hill Tech,ECE,jk@hill.edu,2026-10-20,,waiting,,,,,,
