@@ -104,7 +104,7 @@ check_port_free() {
   local owner; owner="$(port_owner)"
   [ -z "$owner" ] && return 0
   local name; name="$(ps -p "$owner" -o comm= 2>/dev/null || echo '?')"
-  die "端口 $PORT 被其他程序占用（pid $owner，$name）。
+  die "端口 $PORT 被其他程序占用（pid ${owner}，${name}）。
 如果是 Docker 版面板，先运行：docker compose -f \"$DASH/compose.yaml\" down
 或者换个端口：PHD_PORT=8766 phd"
 }
@@ -115,7 +115,7 @@ cmd_start() {
   check_port_free
   ensure_venv
   mkdir -p "$STATE" "$DATA"
-  say "启动中…（数据：$DATA）"
+  say "启动中…（数据：${DATA}）"
   (
     cd "$ROOT"
     nohup "$VENV/bin/python" -m dashboard --data "$DATA" --port "$PORT" --state-dir "$STATE" \
@@ -155,7 +155,7 @@ Docker 版：docker compose -f \"$DASH/compose.yaml\" down；start.sh：在它�
 cmd_status() {
   if is_up; then
     local pid; pid="$(our_pid)"
-    say "运行中：$URL${pid:+（pid $pid）}"
+    say "运行中：$URL${pid:+（pid ${pid}）}"
     say "数据：$DATA"
   else
     say "未运行。启动：phd"
@@ -179,7 +179,7 @@ cmd_run() {
   check_port_free
   ensure_venv
   mkdir -p "$STATE" "$DATA"
-  say "数据：$DATA（Ctrl+C 停止）"
+  say "数据：${DATA}（Ctrl+C 停止）"
   cd "$ROOT"
   exec "$VENV/bin/python" -m dashboard --data "$DATA" --port "$PORT" --state-dir "$STATE" --open ${@+"$@"}
 }
@@ -200,9 +200,9 @@ cmd_install() {
     say "已更新 $rc 里的 phd 命令。"
   else
     printf '\n%s\n' "$line" >> "$rc"
-    say "已把 phd 命令加入 $rc。"
+    say "已把 phd 命令加入 ${rc}。"
   fi
-  say "新开一个终端窗口（或运行 source $rc）后，直接输入 phd 即可。"
+  say "新开一个终端窗口（或运行 source ${rc}）后，直接输入 phd 即可。"
 }
 
 usage() { sed -n '2,17p' "$DASH/phd" | sed 's/^# \{0,1\}//'; }
